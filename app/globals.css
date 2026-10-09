@@ -48,7 +48,7 @@ button:focus-visible, a:focus-visible, textarea:focus-visible { outline: 2px sol
 .back-link { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
 .back-link span { margin-left: 5px; }
 .title-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-h1, h2 { margin: 0; font-family: var(--font-literata), Georgia, serif; letter-spacing: -0.035em; }
+h1, h2 { margin: 0; font-family: Literata, Georgia, serif; letter-spacing: -0.035em; }
 h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.12; }
 h2 { font-size: 25px; }
 .status { padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--text-soft); font-size: 13px; }
@@ -138,70 +138,5 @@ h2 { font-size: 25px; }
   .action-row .button { flex: 1 1 calc(50% - 8px); }
   .disabled-hint { align-items: flex-start; }
   .states-grid { grid-template-columns: 1fr; }
-}
-/* Direction A: Суфлёр */
-.theme-sufler { --bg: #0e0c14; --surface: #171421; --field: #121019; --accent: #8b7cff; --text: #f5f2fb; --text-soft: #d9d4e4; --muted: #9f99ad; --line: #312b42; --line-strong: #4b4261; font-family: var(--font-golos), Inter, sans-serif; }
-.theme-sufler h1, .theme-sufler h2, .theme-sufler .message-vocal { font-family: var(--font-literata), Georgia, serif; }
-.theme-sufler .sidebar { width: 92px; flex-basis: 92px; padding-inline: 12px; align-items: center; }
-.theme-sufler .brand { font-size: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); position: relative; }
-.theme-sufler .brand::after { content: 'V'; position: absolute; inset: 0; display: grid; place-items: center; color: #0e0c14; font: 700 18px Literata, serif; }
-.theme-sufler .nav-link, .theme-sufler .profile-link { width: 44px; padding: 12px; text-align: center; font-size: 18px; }
-.theme-sufler .nav-link span, .theme-sufler .profile-link span, .theme-sufler .collapse-button { display: none; }
-.theme-sufler .sidebar-bottom { align-items: center; }
-.theme-sufler .dialog-sufler { max-width: 820px; }
-.theme-sufler .dialog-sufler .conversation { gap: 8px; }
-.theme-sufler .dialog-sufler .message { max-width: 72%; border: 0; background: transparent; padding: 4px 0; border-radius: 0; }
-.theme-sufler .dialog-sufler .message-author { color: var(--muted); }
-.theme-sufler .dialog-sufler .message-vocal { color: var(--text); }
-.theme-sufler .dialog-sufler .message-vocal:last-of-type { margin-top: 20px; font: 500 clamp(28px, 4vw, 40px)/1.18 Literata, Georgia, serif; }
-.theme-sufler .dialog-sufler .message-vocal:last-of-type .message-label { font: 13px 'Golos Text', sans-serif; }
-.theme-sufler .dialog-sufler .message-note { display: none; }
-.theme-sufler .dialog-sufler .composer { border: 0; border-bottom: 1px solid var(--line-strong); border-radius: 0; padding: 14px 0; background: transparent; }
-.theme-sufler .dialog-sufler .composer textarea { font-size: 20px; }
-
-/* Direction B: Блокнот */
-.theme-notebook { --bg: #eef1f5; --surface: #ffffff; --field: #ffffff; --accent: #2b45f5; --text: #18202b; --text-soft: #344052; --muted: #718096; --line: #d5dbe4; --line-strong: #c1cad7; color: var(--text); font-family: var(--font-onest), Inter, sans-serif; }
-.theme-notebook .sidebar { background: #e5e9f0; border-color: var(--line); }
-.theme-notebook h1, .theme-notebook h2, .theme-notebook .message-author { font-family: var(--font-spectral), Georgia, serif; }
-.theme-notebook .nav-link-active, .theme-notebook .tab-active { background: #fff; color: var(--text); }
-.theme-notebook .dialog-notebook { max-width: 820px; padding: 38px 52px; border: 1px solid var(--line); background: #fff; box-shadow: 0 10px 30px rgba(60,77,105,.08); }
-.theme-notebook .dialog-notebook .conversation { gap: 24px; }
-.theme-notebook .dialog-notebook .message { max-width: 82%; border: 0; padding: 0; border-radius: 0; background: transparent; font-size: 21px; line-height: 1.65; }
-.theme-notebook .dialog-notebook .message-author { max-width: 100%; color: var(--text); }
-.theme-notebook .dialog-notebook .message-vocal { align-self: flex-end; max-width: 42%; padding: 12px 16px; border: 1px solid #bdc8ff; border-radius: 10px; color: #27357d; background: #f0f3ff; font-size: 15px; line-height: 1.45; }
-.theme-notebook .dialog-notebook .message-vocal:first-child { background: transparent; border: 0; padding: 0; }
-.theme-notebook .dialog-notebook .message-label { color: var(--accent); }
-.theme-notebook .dialog-notebook .composer { margin-inline: -52px; margin-bottom: -38px; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: #fafbfc; }
-.theme-notebook .button-primary { color: white; }
-
-/* Direction C: Диктофон */
-.theme-recorder { --bg: #111214; --surface: #1b1d20; --field: #1b1d20; --accent: #ffb02e; --text: #f6f4ef; --text-soft: #d4d1c9; --muted: #92918d; --line: #34363a; --line-strong: #55575c; font-family: Geologica, Inter, sans-serif; }
-.theme-recorder h1, .theme-recorder h2 { font-family: var(--font-geologica), sans-serif; letter-spacing: -0.04em; }
-.theme-recorder .button-primary { color: #18130a; background: var(--accent); box-shadow: none; }
-.theme-recorder .direction-switch { display: none; }
-.theme-recorder .dialog-recorder { max-width: 840px; text-align: center; padding-top: 44px; }
-.theme-recorder .dialog-recorder .conversation { gap: 0; }
-.theme-recorder .dialog-recorder .message { display: none; }
-.theme-recorder .dialog-recorder .message-vocal:last-of-type { display: block; align-self: center; max-width: 720px; padding: 0; border: 0; background: transparent; font-size: 32px; line-height: 1.25; color: var(--text); }
-.theme-recorder .dialog-recorder .message-vocal:last-of-type .message-label { display: none; }
-.recorder-compose { position: relative; margin-top: 54px; }
-.record-top { position: absolute; top: -132px; right: 0; }
-.record-wave { display: flex; align-items: center; justify-content: center; gap: 22px; color: var(--accent); }
-.record-wave svg { width: 100px; height: 42px; opacity: .65; }
-.record-button { width: 88px; height: 88px; display: grid; place-items: center; border: 10px solid rgba(255,176,46,.18); border-radius: 50%; color: #17130a; background: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 40px rgba(255,176,46,.18); cursor: pointer; }
-.record-button svg { width: 24px; }
-.recorder-input { display: flex; align-items: center; gap: 8px; max-width: 460px; margin: 42px auto 0; padding: 6px 8px 6px 20px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--field); }
-.recorder-input input { flex: 1; min-width: 0; border: 0; outline: 0; color: var(--text); background: transparent; }
-.recorder-input button { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #17130a; background: var(--accent); cursor: pointer; }
-@media (max-width: 760px) {
-  .theme-sufler .sidebar { width: 100%; height: 58px; flex-basis: auto; flex-direction: row; }
-  .theme-sufler .brand { width: 34px; height: 34px; }
-  .theme-notebook .dialog-notebook { padding: 24px 18px; }
-  .theme-notebook .dialog-notebook .message-vocal { max-width: 100%; order: 2; }
-  .theme-notebook .dialog-notebook .message-author { order: 1; }
-  .theme-notebook .dialog-notebook .composer { margin-inline: -18px; margin-bottom: -24px; }
-  .theme-recorder .dialog-recorder .message-vocal:last-of-type { font-size: 26px; }
-  .record-wave svg { width: 52px; }
-  .record-top { top: -116px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }

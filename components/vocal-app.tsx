@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowLeft, ArrowRight, AudioWaveform, Check, Copy, Download, Mic, MoreHorizontal, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Copy, Download, Mic, MoreHorizontal, Sparkles, Trash2 } from 'lucide-react'
 
 const tabs = ['Дубли', 'Диалог', 'Сценарий'] as const
 type Tab = (typeof tabs)[number]
@@ -19,10 +19,10 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="brand">Vocal</div>
-      <a className="nav-link nav-link-active" href="#dialog" aria-label="Мысли">✦<span>Мысли</span></a>
+      <a className="nav-link nav-link-active" href="#dialog">Мысли</a>
       <div className="sidebar-bottom">
-        <a className="profile-link" href="#profile" aria-label="Профиль">◌<span>Профиль</span></a>
-        <button className="collapse-button" type="button" aria-label="Свернуть меню">←</button>
+        <a className="profile-link" href="#profile">Профиль</a>
+        <button className="collapse-button" type="button">Свернуть</button>
       </div>
     </aside>
   )
@@ -46,12 +46,10 @@ function WorkspaceHeader({ tab, onTabChange }: { tab: Tab; onTabChange: (tab: Ta
   )
 }
 
-function Dialog({ direction }: { direction: Direction }) {
+function Dialog({ airy }: { airy: boolean }) {
   const [draft, setDraft] = useState('')
-  const isRecorder = direction === 'recorder'
-  const isNotebook = direction === 'notebook'
   return (
-    <section className={`dialog-view dialog-${direction}`} id="dialog" aria-label="Диалог с Vocal">
+    <section className={airy ? 'dialog-view dialog-airy' : 'dialog-view'} id="dialog" aria-label="Диалог с Vocal">
       <div className="conversation" aria-live="polite">
         {messages.map((message, index) => (
           <article key={index} className={message.role === 'author' ? 'message message-author' : 'message message-vocal'}>
@@ -61,19 +59,17 @@ function Dialog({ direction }: { direction: Direction }) {
           </article>
         ))}
       </div>
-      {isRecorder ? (
-        <div className="recorder-compose">
-          <button className="button button-outline record-top" type="button">Записать дубль</button>
-          <div className="record-wave"><AudioWaveform aria-hidden="true" /><button className="record-button" type="button" aria-label="Начать запись"><Mic aria-hidden="true" /></button><AudioWaveform aria-hidden="true" /></div>
-          <form className="recorder-input" onSubmit={(event) => { event.preventDefault(); setDraft('') }}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="или напишите ответ" aria-label="Или напишите ответ" /><button type="submit" aria-label="Отправить ответ"><ArrowRight aria-hidden="true" /></button></form>
+      <form className="composer" onSubmit={(event) => { event.preventDefault(); setDraft('') }}>
+        <label className="sr-only" htmlFor="reply">Напишите ответ</label>
+        <textarea id="reply" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Напишите ответ..." rows={2} />
+        <div className="composer-actions">
+          <div className="composer-tools">
+            <button className="button button-outline" type="button">Записать дубль</button>
+            <button className="icon-button" type="button" aria-label="Записать голосовое сообщение"><Mic aria-hidden="true" /></button>
+          </div>
+          <button className="button button-primary" type="submit">Отправить <ArrowRight aria-hidden="true" /></button>
         </div>
-      ) : (
-        <form className="composer" onSubmit={(event) => { event.preventDefault(); setDraft('') }}>
-          <label className="sr-only" htmlFor="reply">Напишите ответ</label>
-          <textarea id="reply" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Напишите ответ..." rows={2} />
-          <div className="composer-actions"><div className="composer-tools"><button className="button button-outline" type="button">Записать дубль</button><button className="icon-button" type="button" aria-label="Записать голосовое сообщение"><Mic aria-hidden="true" /></button></div><button className="button button-primary" type="submit">Отправить <ArrowRight aria-hidden="true" /></button></div>
-        </form>
-      )}
+      </form>
     </section>
   )
 }
@@ -113,12 +109,10 @@ function ReplyStates() {
   return <section className="states-view" aria-label="Состояния реплик Vocal"><div className="states-heading"><div><p className="eyebrow">Референс реплик</p><h2>Реплики Vocal по состояниям</h2></div><button className="icon-button" type="button" aria-label="Дополнительные действия"><MoreHorizontal aria-hidden="true" /></button></div><p className="states-intro">Что автор видит в диалоге в каждом случае. Список ответов не показывается и не редактируется: автор только разговаривает с сервисом.</p><div className="states-grid">{states.map(([title, note, text]) => <article className="state-card" key={title}><p className="state-title">{title}</p><div className="state-bubble"><div className="message-label">Vocal</div>{note && <p className="message-note">{note}</p>}<p>{text}</p>{title.startsWith('6.') && <div className="state-actions"><button className="button button-primary" type="button">Сгенерировать сценарий</button><button className="button button-outline" type="button">Записать дубль</button></div>}</div></article>)}</div></section>
 }
 
-type Direction = 'sufler' | 'notebook' | 'recorder'
-
 export default function VocalApp() {
   const [tab, setTab] = useState<Tab>('Диалог')
-  const [direction, setDirection] = useState<Direction>('sufler')
-  return <div className={`vocal-shell theme-${direction}`}><Sidebar /><main className="app-main"><WorkspaceHeader tab={tab} onTabChange={setTab} />{tab === 'Диалог' && <div className="direction-switch" aria-label="Направление диалога"><span>Направление</span><button className={direction === 'sufler' ? 'direction-active' : ''} onClick={() => setDirection('sufler')} type="button">A · Суфлёр</button><button className={direction === 'notebook' ? 'direction-active' : ''} onClick={() => setDirection('notebook')} type="button">B · Блокнот</button><button className={direction === 'recorder' ? 'direction-active' : ''} onClick={() => setDirection('recorder')} type="button">C · Диктофон</button></div>}{tab === 'Диалог' && <Dialog direction={direction} />}{tab === 'Сценарий' && <ScriptView />}{tab === 'Дубли' && <ReplyStates />}</main></div>
+  const [airy, setAiry] = useState(false)
+  return <div className="vocal-shell"><Sidebar /><main className="app-main"><WorkspaceHeader tab={tab} onTabChange={setTab} />{tab === 'Диалог' && <div className="direction-switch" aria-label="Направление диалога"><span>Направление</span><button className={!airy ? 'direction-active' : ''} onClick={() => setAiry(false)} type="button">A · плотное</button><button className={airy ? 'direction-active' : ''} onClick={() => setAiry(true)} type="button">B · воздушное</button></div>}{tab === 'Диалог' && <Dialog airy={airy} />}{tab === 'Сценарий' && <ScriptView />}{tab === 'Дубли' && <ReplyStates />}</main></div>
 }
 
 export { Dialog, ScriptView, ReplyStates }
