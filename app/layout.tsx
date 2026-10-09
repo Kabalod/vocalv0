@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Newsreader } from 'next/font/google'
 import './globals.css'
 
-const newsreader = Newsreader({ subsets: ['cyrillic'], weight: ['500', '600', '700'], variable: '--font-newsreader' })
+const newsreader = Newsreader({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-newsreader' })
 
 export const metadata: Metadata = {
   title: 'Vocal — Привычка и мотивация',
