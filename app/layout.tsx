@@ -1,6 +1,9 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Newsreader } from 'next/font/google'
 import './globals.css'
+
+const newsreader = Newsreader({ subsets: ['cyrillic'], weight: ['400', '500', '600'], variable: '--font-newsreader' })
 
 export const metadata: Metadata = {
   title: 'Vocal — Привычка и мотивация',
@@ -26,11 +29,8 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'dark',
+  themeColor: '#131315',
 }
 
 export default function RootLayout({
@@ -40,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body className="antialiased">
+      <body className={`antialiased ${newsreader.variable}`}>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
