@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Video, MessageCircle, Pencil,
+  Video, MessageCircle, Pencil, ChevronsUpDown, Play, Pause, X,
   Archive,
   ArrowLeft,
   ArrowRight,
@@ -24,8 +24,10 @@ import {
 } from "lucide-react";
 
 import ThoughtLibrary from "./thought-library";
+import { ThoughtBubble } from './thought-bubble';
 import './focused-thought.css';
 import './macos-thought.css';
+import './apple-polish.css';
 
 type Tab = "Дубли" | "Диалог" | "Сценарий";
 type RecordingState =
@@ -254,6 +256,9 @@ function Header({
   onThoughts: () => void;
   onOpenMenu: () => void;
 }) {
+  const [status, setStatus] = useState('Не завершена');
+  const [statusMenu, setStatusMenu] = useState(false);
+  useEffect(() => { const close = () => setStatusMenu(false); const key = (e: KeyboardEvent) => { if(e.key === 'Escape') close() }; window.addEventListener('click', close); window.addEventListener('keydown', key); return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', key) } }, []);
   const tabIcons = { Дубли: Video, Диалог: MessageCircle, Сценарий: FileText };
   return (
     <header className="workspace-header">
@@ -265,7 +270,7 @@ function Header({
           <span className="eyebrow">Сегодня, 10:42</span>
           <h1>{title}</h1>
         </div>
-        <span className="status">Не завершена</span>
+        <div className="status-anchor"><button className="status" aria-expanded={statusMenu} aria-haspopup="menu" onClick={e=>{e.stopPropagation();setStatusMenu(!statusMenu)}}><i className={status === 'Итоговая' ? 'green' : ''}/>{status}<ChevronsUpDown/></button>{statusMenu&&<div className="apple-menu" role="menu">{['Не завершена','Итоговая'].map(value=><button key={value} role="menuitem" onClick={()=>{setStatus(value);setStatusMenu(false)}}>{value}</button>)}</div>}</div>
         <button
           className="more-button"
           aria-label="Меню мысли"
@@ -283,7 +288,7 @@ function Header({
               className={tab === item ? "tab tab-active" : "tab"}
               onClick={() => setTab(item)}
               aria-label={item}
-              title={item}
+              title={`${item} ⌘${['Дубли','Диалог','Сценарий'].indexOf(item)+1}`}
               aria-pressed={tab === item}
             >
               <Icon className={item === 'Дубли' ? 'mobile-drafts-icon' : undefined} />
@@ -320,23 +325,12 @@ function Dialog() {
   return (
     <section className="dialog-view">
       <div className="conversation">
-        {messages.map((message, index) => (
-          <article key={index} className={`message message-${message.role}`}>
-            <div className="message-label">
-              {message.role === "vocal" ? "Vocal" : "Вы"}
-            </div>
-            {message.note && (
-              <p className="message-note">
-                <Lightbulb />
-                {message.note}
-              </p>
-            )}
-            <p>{message.text}</p>
-          </article>
-        ))}
+        <time className="conversation-time">Сегодня, 10:42</time>
+        {messages.map((message, index) => <ThoughtBubble key={index} {...message} grouped={messages[index+1]?.role===message.role || (index===messages.length-1 && sent.length>0)}/>)}
+        {sent.map((text,index)=><ThoughtBubble key={`sent-${index}`} text={text} role="author" grouped={index<sent.length-1}/>)}
       </div>
-      {sent.map((text, index) => <article key={index} className="message message-author"><div className="message-label">Вы</div><p>{text}</p></article>)}
-      {recording === 'recording' && <div className="recording-status" role="status"><Mic className="desktop-recording-mic" /><div className="recording-wave" aria-hidden="true">{Array.from({length: 15}, (_, i) => <i key={i} style={{animationDelay: `${i * 0.09}s`}} />)}</div><p>Идёт запись · {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}</p><div><button className="button button-primary" onClick={() => setRecording('transcribing')}><StopCircle /> Стоп</button><button className="button button-outline" onClick={() => setRecording('idle')}>Отмена</button></div></div>}
+      {recording === 'recording' && <div className="recording-status" role="status"><Mic className="desktop-recording-mic" /><div className="recording-wave" aria-hidden="true">{Array.from({length: 15}, (_, i) => <i key={i} style={{animationDelay: `${i * 0.09}s`}} />)}</div><p>Идёт запись · {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}</p><div><button className="button button-primary" onClick={() => setRecording('transcribing')}><StopCircle /> Стоп</button><button className="button button-outline" aria-label="Отмена" onClick={() => setRecording('idle')}><X /></button></div></div>}
+      {recording === 'recording' && <p className="record-caption">Нажмите и говорите</p>}
       {recording === 'error' && <div className="recording-status" role="alert"><p>Не расслышали</p><button className="button button-outline" onClick={start}>Записать заново</button></div>}
       {recording === "transcribing" && (
         <div className="transcribing" role="status">
@@ -395,16 +389,16 @@ function Dialog() {
               setDraft("");
             }}
           >
-            <button type="button" className="desktop-composer-mic" aria-label="Нажмите и говорите" onClick={start}><Mic /></button>
+
             <input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Или напишите ответ"
               aria-label="Или напишите ответ"
+              onKeyDown={e=>{if(e.nativeEvent.isComposing || e.keyCode===229){if(e.key==='Enter')e.preventDefault();return} if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}
             />
-            <button aria-label="Отправить" className={draft.trim() ? 'has-text' : ''}>
-              <ArrowRight />
-            </button>
+            {draft.trim() ? <button aria-label="Отправить" className="has-text"><ArrowRight /></button> : <button type="button" aria-label="Нажмите и говорите" className="has-text" onClick={start}><Mic /></button>}
+            <span className="composer-shortcut">⌘↵</span>
           </form>
         </div>
       )}
@@ -415,13 +409,12 @@ function ScriptView() {
   return (
     <section className="script-layout">
       <div className="script-main">
-        <article className="source-card">
-          <p className="eyebrow">Основа · ваш дубль №1</p>
+        <details className="source-disclosure"><summary>Основа · ваш дубль №1</summary><article className="source-card">
           <p>
             Три недели назад я начал бегать по утрам. На третий день мне стало
             лень, но я всё равно вышел, потому что так уже делал вчера.
           </p>
-        </article>
+        </article></details>
         <div className="vocal-prompt">
           <div>
             <div className="message-label">Vocal</div>
@@ -474,13 +467,7 @@ function ScriptView() {
           <Check /> Добавил фразу про первый шаг.
         </div>
         <div className="inspector-actions">
-          <button className="button button-outline"><Pencil /> Править</button>
-          <button className="button button-outline">
-            <Copy /> Копировать
-          </button>
-          <button className="button button-outline">
-            <Download /> Скачать
-          </button>
+          <div className="inspector-tools"><button title="Править" aria-label="Править"><Pencil /></button><button title="Копировать" aria-label="Копировать" onClick={()=>navigator.clipboard.writeText(document.querySelector('.script-text')?.textContent || '').catch(()=>{})}><Copy /></button><button title="Скачать" aria-label="Скачать" onClick={()=>{const url=URL.createObjectURL(new Blob([document.querySelector('.script-text')?.textContent || ''],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='script.txt';a.click();URL.revokeObjectURL(url)}}><Download /></button></div>
           <button className="button button-primary">Сделать итоговой</button>
         </div>
       </aside>
@@ -488,12 +475,17 @@ function ScriptView() {
   );
 }
 function DraftsView() {
+  const [takes,setTakes]=useState<number[]>([]), [selected,setSelected]=useState(0), [playing,setPlaying]=useState(false), [position,setPosition]=useState(0);
+  useEffect(()=>{if(!playing)return;const timer=setInterval(()=>setPosition(n=>{if(n>=42){setPlaying(false);return 0}return n+1}),1000);return()=>clearInterval(timer)},[playing]);
+  const add=()=>{setTakes(list=>[...list,list.length+1]);setSelected(takes.length+1);setPosition(0);setPlaying(false)};
+  const wave=<svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true">{Array.from({length:60},(_,i)=><rect key={i} x={i*5} y={12-(3+(i*7%10))} width="2" height={2*(3+(i*7%10))} rx="1"/>)}</svg>;
+  if(takes.length)return <section className="takes-list">{takes.map(id=><div key={id} className={`take-item ${selected===id?'selected':''}`}><div className="take-row"><button aria-label={playing&&selected===id?'Пауза':'Воспроизвести'} onClick={()=>{setSelected(id);setPlaying(selected===id?!playing:true)}}>{playing&&selected===id?<Pause/>:<Play/>}</button><button className="take-title" onClick={()=>setSelected(id)}>Дубль №{id}</button><span>Сегодня, 10:42 · 00:42</span></div>{wave}<p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел.</p>{selected===id&&<div className="take-player">{wave}<input aria-label="Позиция воспроизведения" type="range" min="0" max="42" value={position} onChange={e=>setPosition(Number(e.target.value))}/><div><time>00:{String(position).padStart(2,'0')}</time><time>00:42</time></div></div>}</div>)}<button className="button button-primary" onClick={add}><Mic/>Записать новый дубль</button></section>;
   return (
     <section className="drafts-view">
       <Copy />
       <h2>Дубли</h2>
       <p>Здесь появятся ваши голосовые дубли.</p>
-      <button className="button button-primary">
+      <button className="button button-primary" onClick={add}>
         <Mic /> Записать дубль
       </button>
     </section>
@@ -511,6 +503,7 @@ export default function VocalApp() {
         event.preventDefault();
         setPalette(true);
       }
+      if ((event.metaKey || event.ctrlKey) && ['1','2','3'].includes(event.key)) { event.preventDefault(); setTab((['Дубли','Диалог','Сценарий'] as Tab[])[Number(event.key)-1]); }
       if (event.key === "Escape") {
         setPalette(false);
         setMenu(false);

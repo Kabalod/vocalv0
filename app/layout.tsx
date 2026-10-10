@@ -1,9 +1,9 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Newsreader, Inter } from 'next/font/google'
+import { Literata, Inter } from 'next/font/google'
 import './globals.css'
 
-const newsreader = Newsreader({ subsets: ['latin'], weight: ['400', '500', '600', '700'], display: 'swap', variable: '--font-newsreader' })
+const newsreader = Literata({ subsets: ['latin', 'cyrillic'], weight: ['400', '500'], display: 'swap', variable: '--font-serif' })
 const inter = Inter({ subsets: ['latin', 'cyrillic'], display: 'swap', variable: '--font-inter' })
 
 export const metadata: Metadata = {
