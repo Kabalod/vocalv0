@@ -25,6 +25,7 @@ import {
 
 import ThoughtLibrary from "./thought-library";
 import './focused-thought.css';
+import './macos-thought.css';
 
 type Tab = "Дубли" | "Диалог" | "Сценарий";
 type RecordingState =
@@ -285,7 +286,8 @@ function Header({
               title={item}
               aria-pressed={tab === item}
             >
-              <Icon />
+              <Icon className={item === 'Дубли' ? 'mobile-drafts-icon' : undefined} />
+              {item === 'Дубли' && <Copy className="desktop-drafts-icon" />}
               <span>{tab === item ? item : ""}</span>
             </button>
           );
@@ -334,7 +336,7 @@ function Dialog() {
         ))}
       </div>
       {sent.map((text, index) => <article key={index} className="message message-author"><div className="message-label">Вы</div><p>{text}</p></article>)}
-      {recording === 'recording' && <div className="recording-status" role="status"><div className="recording-wave" aria-hidden="true">{Array.from({length: 15}, (_, i) => <i key={i} style={{animationDelay: `${i * 0.09}s`}} />)}</div><p>Идёт запись · {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}</p><div><button className="button button-primary" onClick={() => setRecording('transcribing')}><StopCircle /> Стоп</button><button className="button button-outline" onClick={() => setRecording('idle')}>Отмена</button></div></div>}
+      {recording === 'recording' && <div className="recording-status" role="status"><Mic className="desktop-recording-mic" /><div className="recording-wave" aria-hidden="true">{Array.from({length: 15}, (_, i) => <i key={i} style={{animationDelay: `${i * 0.09}s`}} />)}</div><p>Идёт запись · {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}</p><div><button className="button button-primary" onClick={() => setRecording('transcribing')}><StopCircle /> Стоп</button><button className="button button-outline" onClick={() => setRecording('idle')}>Отмена</button></div></div>}
       {recording === 'error' && <div className="recording-status" role="alert"><p>Не расслышали</p><button className="button button-outline" onClick={start}>Записать заново</button></div>}
       {recording === "transcribing" && (
         <div className="transcribing" role="status">
@@ -393,13 +395,14 @@ function Dialog() {
               setDraft("");
             }}
           >
+            <button type="button" className="desktop-composer-mic" aria-label="Нажмите и говорите" onClick={start}><Mic /></button>
             <input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
               placeholder="Или напишите ответ"
               aria-label="Или напишите ответ"
             />
-            <button aria-label="Отправить">
+            <button aria-label="Отправить" className={draft.trim() ? 'has-text' : ''}>
               <ArrowRight />
             </button>
           </form>
