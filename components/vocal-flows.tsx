@@ -44,7 +44,7 @@ export function NewThoughtModal({ open, onClose, onCreate }: { open: boolean; on
         <textarea rows={3} value={text} onChange={event => setText(event.target.value)} placeholder="Или напишите мысль" aria-label="Или напишите мысль" />
         <button className="video-upload" aria-label="Загрузить видео" title="Загрузить видео"><Video /><span>Видео</span></button>
       </div>
-      <footer><button className="flow-ghost" onClick={onClose}>Отмена</button><button className="flow-primary" disabled={!text.trim() && seconds === 0} onClick={onCreate}>Создать мысль</button></footer>
+      <footer><button className="flow-ghost" onClick={onClose}>Отмена</button><button className="flow-primary" disabled={!text.trim() && seconds === 0} aria-disabled={!text.trim() && seconds === 0} onClick={onCreate}>Создать мысль</button></footer>
     </section>
   </div>;
 }
