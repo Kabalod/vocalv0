@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Video, MessageCircle, Pencil, ChevronsUpDown, Play, Pause, X,
   Archive,
@@ -28,6 +28,7 @@ import { ThoughtBubble } from './thought-bubble';
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
+import './mobile-ios.css';
 
 type Tab = "Дубли" | "Диалог" | "Сценарий";
 type RecordingState =
@@ -258,17 +259,25 @@ function Header({
 }) {
   const [status, setStatus] = useState('Не завершена');
   const [statusMenu, setStatusMenu] = useState(false);
+  const [showCompactTitle, setShowCompactTitle] = useState(false);
+  const largeTitleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => setShowCompactTitle(!entry.isIntersecting), { rootMargin: '-44px 0px 0px' });
+    if (largeTitleRef.current) observer.observe(largeTitleRef.current);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => { const close = () => setStatusMenu(false); const key = (e: KeyboardEvent) => { if(e.key === 'Escape') close() }; window.addEventListener('click', close); window.addEventListener('keydown', key); return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', key) } }, []);
   const tabIcons = { Дубли: Video, Диалог: MessageCircle, Сценарий: FileText };
   return (
     <header className="workspace-header">
       <button className="back-link" onClick={onThoughts}>
-        <ArrowLeft /> Все мысли
+        <ArrowLeft /> <span className="desktop-back-copy">Все мысли</span><span className="mobile-back-copy">Мысли</span>
       </button>
+      <span className={`mobile-nav-title ${showCompactTitle ? 'visible' : ''}`}>{title}</span>
       <div className="title-row">
         <div>
           <span className="eyebrow">Сегодня, 10:42</span>
-          <h1>{title}</h1>
+          <h1 ref={largeTitleRef}>{title}</h1>
         </div>
         <div className="status-anchor"><button className="status" aria-expanded={statusMenu} aria-haspopup="menu" onClick={e=>{e.stopPropagation();setStatusMenu(!statusMenu)}}><i className={status === 'Итоговая' ? 'green' : ''}/>{status}<ChevronsUpDown/></button>{statusMenu&&<div className="apple-menu" role="menu">{['Не завершена','Итоговая'].map(value=><button key={value} role="menuitem" onClick={()=>{setStatus(value);setStatusMenu(false)}}>{value}</button>)}</div>}</div>
         <button
@@ -307,6 +316,13 @@ function Dialog() {
   const [transcript, setTranscript] = useState("");
   const [seconds, setSeconds] = useState(0);
   const [sent, setSent] = useState<string[]>([]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const updateKeyboard = () => document.documentElement.style.setProperty('--kb', `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`);
+    viewport?.addEventListener('resize', updateKeyboard);
+    viewport?.addEventListener('scroll', updateKeyboard);
+    return () => { viewport?.removeEventListener('resize', updateKeyboard); viewport?.removeEventListener('scroll', updateKeyboard); document.documentElement.style.removeProperty('--kb') };
+  }, []);
   useEffect(() => {
     if (recording !== 'recording') return;
     const timer = window.setInterval(() => setSeconds(n => n + 1), 1000);
@@ -452,20 +468,14 @@ function ScriptView() {
         </article>
       </div>
       <aside className="version-inspector">
-        <div className="inspector-title">
-          Версия <MoreHorizontal />
-        </div>
-        <div className="inspector-toggle">
-          <button className="active">Изменения</button>
-          <button>Основа</button>
-        </div>
-        <p>Вторая версия собрана из ваших слов и уточнений в диалоге.</p>
-        <div className="inspector-item">
-          <Check /> Убрал повтор и оставил ваши слова.
-        </div>
-        <div className="inspector-item">
-          <Check /> Добавил фразу про первый шаг.
-        </div>
+        <div className="inspector-title">Версия <MoreHorizontal /></div>
+        <details className="changes-disclosure">
+          <summary>Что изменено</summary>
+          <div className="inspector-toggle"><button className="active">Изменения</button><button>Основа</button></div>
+          <p>Вторая версия собрана из ваших слов и уточнений в диалоге.</p>
+          <div className="inspector-item"><Check /> Убрал повтор и оставил ваши слова.</div>
+          <div className="inspector-item"><Check /> Добавил фразу про первый шаг.</div>
+        </details>
         <div className="inspector-actions">
           <div className="inspector-tools"><button title="Править" aria-label="Править"><Pencil /></button><button title="Копировать" aria-label="Копировать" onClick={()=>navigator.clipboard.writeText(document.querySelector('.script-text')?.textContent || '').catch(()=>{})}><Copy /></button><button title="Скачать" aria-label="Скачать" onClick={()=>{const url=URL.createObjectURL(new Blob([document.querySelector('.script-text')?.textContent || ''],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='script.txt';a.click();URL.revokeObjectURL(url)}}><Download /></button></div>
           <button className="button button-primary">Сделать итоговой</button>
@@ -496,6 +506,7 @@ export default function VocalApp() {
   const [showThoughts, setShowThoughts] = useState(true);
   const [palette, setPalette] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [activeThought, setActiveThought] = useState("Привычка и мотивация");
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -535,13 +546,14 @@ export default function VocalApp() {
         onThoughts={() => setShowThoughts(true)}
         onOpenMenu={() => setMenu(!menu)}
       />
+      {confirmDelete && <div className="confirm-backdrop"><section className="confirm-alert" role="alertdialog" aria-labelledby="delete-title"><h2 id="delete-title">Удалить мысль?</h2><div><button onClick={() => setConfirmDelete(false)}>Отмена</button><button className="danger" onClick={() => { setConfirmDelete(false); setShowThoughts(true) }}>Удалить</button></div></section></div>}
       {menu && (
         <div className="thought-menu">
           <button>
             <Mic />
             Записать дубль
           </button>
-          <button className="danger">
+          <button className="danger" onClick={() => { setMenu(false); setConfirmDelete(true) }}>
             <Trash2 />
             Удалить мысль
           </button>

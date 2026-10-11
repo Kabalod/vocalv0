@@ -13,6 +13,10 @@ import {
   Search,
   UserRound,
   X,
+  ArrowUpDown,
+  Settings,
+  LogOut,
+  Trash2,
 } from "lucide-react";
 import "./thought-library.css";
 
@@ -66,6 +70,7 @@ export default function ThoughtLibrary({
   const [command, setCommand] = useState("");
   const [selected, setSelected] = useState(0);
   const [profile, setProfile] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const dateDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (dateOpen) dateDialog.current?.showModal(); else dateDialog.current?.close() }, [dateOpen]);
@@ -166,6 +171,7 @@ export default function ThoughtLibrary({
       <div className="row-copy">
         <strong>{item.title}</strong>
         <span className="row-preview">{item.text}</span>
+        <span className="mobile-row-meta"><span>● {statuses[item.status]} · версия {(item.id % 4) + 1}</span><time>{new Date(dateOf(item.id)).toLocaleDateString("ru-RU")}</time></span>
       </div>
       <div className="row-status">{badge(item.status)}</div>
       <span className="row-versions">версий: {(item.id % 4) + 1}</span>
@@ -196,12 +202,7 @@ export default function ThoughtLibrary({
             )}
             {name === "Завершена" ? "Завершена" : name}
           </span>
-          <small>
-            {(index === 0
-              ? items.length
-              : items.filter((item) => item.status === index - 1).length
-            ).toLocaleString("ru-RU")}
-          </small>
+          {index === 0 && <small>{items.length.toLocaleString("ru-RU")}</small>}
         </button>
       ))}
     </>
@@ -253,9 +254,11 @@ export default function ThoughtLibrary({
               ref={searchButton}
               onClick={() => setPalette(true)}
               aria-label="Открыть командную палитру"
+              className="desktop-command-key"
             >
               ⌘K
             </button>
+            <button className="mobile-sort-trigger" aria-label="Сортировка" onClick={() => setSortOpen(true)}><ArrowUpDown /></button>
           </div>
           <div className="library-sort" role="group" aria-label="Сортировка">
             {(["new", "old"] as const).map((value) => (
@@ -418,24 +421,23 @@ export default function ThoughtLibrary({
       </dialog>
       <dialog ref={dateDialog} className="library-command date-dialog" onCancel={() => setDateOpen(false)} onClose={() => setDateOpen(false)}>
         <header><h2>Дата</h2><button aria-label="Закрыть выбор даты" onClick={() => setDateOpen(false)}><X /></button></header>
+        <div className="mobile-calendar"><div className="calendar-heading"><strong>Октябрь 2026</strong><button onClick={() => { setDateFilter('all'); setLimit(6) }}>Сбросить</button></div><div className="calendar-week">{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day => <span key={day}>{day}</span>)}</div><div className="calendar-days">{Array.from({ length: 3 }, (_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: 31 }, (_, index) => <button key={index + 1} className={index + 1 === 9 && today ? 'selected has-thought' : [2,5,7,8,9].includes(index + 1) ? 'has-thought' : ''} onClick={() => { setDateFilter(index + 1 === 9 ? 'today' : 'range'); setRangeStart(`2026-10-${String(index + 1).padStart(2,'0')}`); setRangeEnd(`2026-10-${String(index + 1).padStart(2,'0')}`); setLimit(6); setDateOpen(false) }}>{index + 1}</button>)}</div><button className="month-chip" onClick={() => { setDateFilter('all'); setLimit(6); setDateOpen(false) }}>Весь месяц</button></div>
         <div className="date-options">{[['all', 'Все даты'], ['today', 'Сегодня'], ['yesterday', 'Вчера'], ['week', 'Неделя'], ['range', 'Диапазон']].map(([value, label]) => <button key={value} aria-pressed={dateFilter === value} className={dateFilter === value ? 'selected' : ''} onClick={() => { setDateFilter(value); setLimit(6); if (value !== 'range') setDateOpen(false) }}>{label}</button>)}</div>
         {dateFilter === 'range' && <div className="date-range"><label>С<input type="date" value={rangeStart} max={rangeEnd || undefined} onChange={e => { setRangeStart(e.target.value); setLimit(6) }} /></label><label>По<input type="date" value={rangeEnd} min={rangeStart || undefined} onChange={e => { setRangeEnd(e.target.value); setLimit(6) }} /></label><button onClick={() => setDateOpen(false)} disabled={!!rangeStart && !!rangeEnd && rangeStart > rangeEnd}>Применить</button></div>}
       </dialog>
+      {sortOpen && <div className="sheet-backdrop" onClick={() => setSortOpen(false)}><section className="mobile-sheet sort-sheet" role="dialog" aria-label="Сортировка" onClick={e => e.stopPropagation()}><button className="sheet-grabber" aria-label="Закрыть" onClick={() => setSortOpen(false)} /><h2>Сортировка</h2>{(['new','old'] as const).map(value => <button className={sort === value ? 'selected' : ''} key={value} onClick={() => { setSort(value); setLimit(6); setSortOpen(false) }}>{value === 'new' ? 'Новые' : 'Старые'}</button>)}</section></div>}
       {profile && (
-        <div
-          className="library-profile-panel"
-          role="dialog"
-          aria-label="Профиль"
-        >
-          <button
-            aria-label="Закрыть профиль"
-            onClick={() => setProfile(false)}
-          >
-            <X />
-          </button>
-          <h2>Профиль</h2>
-          <p>Демонстрационный аккаунт Vocal</p>
-          <p>Мысли в этой ��иблиотеке — моковые данные.</p>
+        <div className="sheet-backdrop" onClick={() => setProfile(false)}>
+          <section className="mobile-sheet library-profile-panel" role="dialog" aria-label="Профиль" onClick={e => e.stopPropagation()}>
+            <button className="sheet-grabber" aria-label="Закрыть профиль" onClick={() => setProfile(false)} />
+            <div className="profile-avatar"><UserRound /></div>
+            <h2>Демонстрационный аккаунт Vocal</h2>
+            <p>Мысли в этой библиотеке — моковые данные.</p>
+            <div className="quota-card"><strong>Осталось 100 из 100 мыслей</strong><span><i /></span></div>
+            <button className="profile-row"><Settings />Настройки</button>
+            <button className="profile-row"><LogOut />Выйти</button>
+            <button className="profile-row danger"><Trash2 />Удалить аккаунт</button>
+          </section>
         </div>
       )}
     </div>
