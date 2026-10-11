@@ -26,7 +26,7 @@ import {
 import ThoughtLibrary from "./thought-library";
 import { NewThoughtModal, StatesGallery, TakeRecorder } from "./vocal-flows";
 import { ThoughtBubble } from './thought-bubble';
-import { ProfilePage, ScriptDesktop, readingScript, useIsDesktop } from "./desktop-views";
+import { ProfilePage, ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, withBuiltVersion } from "./desktop-views";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -313,7 +313,7 @@ function Header({
     </header>
   );
 }
-function Dialog({ desktop = false, onBuildScript }: { desktop?: boolean; onBuildScript?: () => void }) {
+function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolean; versions?: typeof initialScriptVersions; onBuildScript?: () => void }) {
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState<RecordingState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -430,7 +430,7 @@ function Dialog({ desktop = false, onBuildScript }: { desktop?: boolean; onBuild
     </>
   );
   if (desktop) {
-    const script = readingScript();
+    const script = readingScript(versions);
     const reply = (text: string) => setSent(previous => [...previous, text]);
     return (
       <section className="dk-dialog">
@@ -546,6 +546,22 @@ function DraftsView({ onRecord }: { onRecord: () => void }) {
 export default function VocalApp() {
   const desktop = useIsDesktop();
   const [profilePage, setProfilePage] = useState(false);
+  const [versions, setVersions] = useState(initialScriptVersions);
+  const [building, setBuilding] = useState(false);
+  const buildTimer = useRef<number | null>(null);
+  const startBuild = () => {
+    if (building) return;
+    setBuilding(true);
+    buildTimer.current = window.setTimeout(() => {
+      setVersions(previous => withBuiltVersion(previous));
+      setBuilding(false);
+    }, 2200);
+  };
+  const cancelBuild = () => {
+    if (buildTimer.current !== null) window.clearTimeout(buildTimer.current);
+    setBuilding(false);
+  };
+  useEffect(() => () => { if (buildTimer.current !== null) window.clearTimeout(buildTimer.current); }, []);
   const [tab, setTab] = useState<Tab>("Диалог");
   const [showThoughts, setShowThoughts] = useState(true);
   const [palette, setPalette] = useState(false);
@@ -616,8 +632,8 @@ export default function VocalApp() {
           </button>
         </div>
       )}
-      {tab === "Диалог" && <Dialog desktop={desktop} onBuildScript={() => setTab("Сценарий")} />}
-      {tab === "Сценарий" && (desktop ? <ScriptDesktop onHelp={() => setTab("Диалог")} /> : <ScriptView />)}
+      {tab === "Диалог" && <Dialog desktop={desktop} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
+      {tab === "Сценарий" && (desktop ? <ScriptDesktop versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView />)}
       {tab === "Дубли" && <DraftsView onRecord={() => setTakeRecorder(true)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
     </ThoughtShell>

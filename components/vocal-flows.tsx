@@ -122,6 +122,10 @@ function StateCard({ icon, title, text, children, danger = false }: { icon: Reac
   return <article className={`state-card ${danger ? "danger" : ""}`}><div className="state-icon">{icon}</div><h2>{title}</h2>{text && <p>{text}</p>}<div className="state-actions">{children}</div></article>;
 }
 
+export function ScriptBuildingState({ onCancel }: { onCancel?: () => void }) {
+  return <article className="state-card script-state" role="status" aria-live="polite"><div className="script-skeleton"><i/><i/><i/><i/></div><p>Vocal собирает сценарий…</p><button onClick={onCancel}>Отмена</button></article>;
+}
+
 export function QuotaState({ compact = false }: { compact?: boolean }) {
   return <section className={`quota-exhausted ${compact ? "compact" : ""}`}><Lock /><div><h2>Лимит мыслей исчерпан</h2><p>Вы использовали 100 из 100 мыслей. Период до 12.11. Старые мысли остаются доступны: их можно читать, копировать и скачивать</p></div><div><button className="flow-primary">Продлить</button><button className="flow-ghost">Закрыть</button></div></section>;
 }
@@ -135,7 +139,7 @@ export function StatesGallery({ onClose }: { onClose: () => void }) {
     <StateCard icon={<span className="spinner"/>} title="Расшифровываем…" text="Можно закрыть экран, расшифровка продолжится"><button>Закрыть</button></StateCard>
     <StateCard danger icon={<FileWarning/>} title="Не получилось расшифровать"><button>Повторить</button><button>Отмена</button></StateCard>
     <StateCard icon={<RotateCcw/>} title="Слишком часто. Подождите минуту" text={`00:${String(count).padStart(2,"0")}`} />
-    <article className="state-card script-state"><div className="script-skeleton"><i/><i/><i/><i/></div><p>Vocal собирает сценарий…</p><button>Отмена</button></article>
+    <ScriptBuildingState />
     <StateCard danger icon={<AlertTriangle/>} title="Не удалось собрать сценарий"><button>Повторить</button></StateCard>
     <QuotaState />
     <article className="state-card empty-state"><button className="empty-mic" aria-label="Записать первую мысль"><Mic/></button><h2>Запишите первую мысль</h2><p>Расскажите голосом или напишите текст.</p></article>

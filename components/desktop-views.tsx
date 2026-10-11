@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, Check, ChevronDown, LogOut, Pencil, Settings, Sparkles, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, LogOut, Pencil, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { ScriptBuildingState } from "./vocal-flows";
 import "./desktop-views.css";
 
 const DESKTOP_QUERY = "(min-width:1024px)";
@@ -29,7 +30,7 @@ export type ScriptVersion = {
   isSource?: boolean;
 };
 
-export const scriptVersions: ScriptVersion[] = [
+export const initialScriptVersions: ScriptVersion[] = [
   {
     id: "v2",
     name: "Версия 2",
@@ -62,28 +63,65 @@ export const scriptVersions: ScriptVersion[] = [
   },
 ];
 
+/** Mock result of a build: the new version becomes current and older versions lose the "текущая" tag. */
+export function withBuiltVersion(versions: ScriptVersion[]): ScriptVersion[] {
+  const number = versions.filter((item) => !item.isSource).length + 1;
+  const built: ScriptVersion = {
+    id: `v${number}`,
+    name: `Версия ${number}`,
+    tag: "текущая",
+    date: "Только что · из диалога",
+    text: [
+      "Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел: так уже делал вчера.",
+      "Привычка держится не на желании, а на простом первом шаге. Надеть кроссовки — и дальше всё идёт само.",
+    ],
+    changes: ["Собрал сценарий из ваших ответов в диалоге.", "Сократил заход: сначала событие, потом вывод."],
+  };
+  return [built, ...versions.map((item) => ({ ...item, tag: undefined }))];
+}
+
 /** Script shown in the dialog reader: the newest version, or the source take when there are no versions yet. */
-export function readingScript(versions: ScriptVersion[] = scriptVersions) {
+export function readingScript(versions: ScriptVersion[] = initialScriptVersions) {
   const version = versions.find((item) => !item.isSource);
   if (version) return { caption: `Сценарий · ${version.name}`, text: version.text };
-  const source = versions.find((item) => item.isSource) ?? scriptVersions[scriptVersions.length - 1];
+  const source = versions.find((item) => item.isSource) ?? initialScriptVersions[initialScriptVersions.length - 1];
   return { caption: "Основа · ваш дубль №1", text: source.text };
 }
 
-export function ScriptDesktop({ onHelp }: { onHelp: () => void }) {
-  const [selectedId, setSelectedId] = useState(scriptVersions[0].id);
-  const [texts, setTexts] = useState(() => Object.fromEntries(scriptVersions.map((item) => [item.id, item.text.join("\n\n")])));
+export function ScriptDesktop({
+  versions,
+  building,
+  onBuild,
+  onCancelBuild,
+  onHelp,
+}: {
+  versions: ScriptVersion[];
+  building: boolean;
+  onBuild: () => void;
+  onCancelBuild: () => void;
+  onHelp: () => void;
+}) {
+  const [selectedId, setSelectedId] = useState(versions[0].id);
+  const [texts, setTexts] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [finalId, setFinalId] = useState<string | null>(null);
-  const version = scriptVersions.find((item) => item.id === selectedId) ?? scriptVersions[0];
+  const [hintOpen, setHintOpen] = useState(true);
+  const newestId = versions[0].id;
+  // A freshly built version becomes current and is selected right away.
+  useEffect(() => { setSelectedId(newestId); setEditing(false); }, [newestId]);
+  const version = versions.find((item) => item.id === selectedId) ?? versions[0];
+  const textOf = (item: ScriptVersion) => texts[item.id] ?? item.text.join("\n\n");
   const select = (id: string) => { setSelectedId(id); setEditing(false); };
   return (
     <section className="dk-script-page">
       <aside className="dk-versions" aria-label="Версии сценария">
+        <button className="dk-btn dk-btn-primary dk-build" disabled={building} aria-busy={building} onClick={onBuild}>
+          <Sparkles /> Собрать новую версию
+        </button>
         <h2>Версии</h2>
         <ul>
-          {scriptVersions.map((item) => (
+          {versions.map((item) => (
             <li key={item.id}>
               <button
                 className={`dk-version ${item.id === selectedId ? "selected" : ""}`}
@@ -101,7 +139,7 @@ export function ScriptDesktop({ onHelp }: { onHelp: () => void }) {
           ))}
         </ul>
       </aside>
-      <article className="dk-reader" aria-label={version.name}>
+      <article className="dk-reader" aria-label={version.name} aria-busy={building}>
         <header>
           <div>
             <span className="dk-eyebrow">{version.name}{version.tag ? ` · ${version.tag}` : ""}</span>
@@ -110,23 +148,32 @@ export function ScriptDesktop({ onHelp }: { onHelp: () => void }) {
           <div className="dk-reader-actions">
             <button
               className="dk-btn dk-btn-secondary"
-              disabled={version.isSource || editing}
+              disabled={version.isSource || editing || building}
               title={version.isSource ? "Основа — расшифровка вашего дубля" : undefined}
-              onClick={() => { setDraft(texts[version.id]); setEditing(true); }}
+              onClick={() => { setDraft(textOf(version)); setEditing(true); }}
             >
               <Pencil /> Редактировать
             </button>
             <button className="dk-btn dk-btn-ghost" onClick={onHelp}><Sparkles /> Помочь со сценарием</button>
             <button
               className="dk-btn dk-btn-primary"
-              disabled={version.isSource || finalId === version.id}
+              disabled={version.isSource || finalId === version.id || building}
               onClick={() => setFinalId(version.id)}
             >
               {finalId === version.id ? <><Check /> Итоговый</> : "Сделать итоговым"}
             </button>
           </div>
         </header>
-        {editing ? (
+        {hintOpen && !building && versions.length <= 3 && (
+          <div className="dk-hint" role="note">
+            <p><strong>Vocal</strong> Я понял так: привычка держится на простом первом шаге, а не на желании. Собрать новую версию?</p>
+            <button className="dk-btn dk-btn-primary" onClick={onBuild}><Sparkles /> Собрать новую версию</button>
+            <button className="dk-hint-close" aria-label="Закрыть подсказку" onClick={() => setHintOpen(false)}><X /></button>
+          </div>
+        )}
+        {building ? (
+          <div className="dk-building"><ScriptBuildingState onCancel={onCancelBuild} /></div>
+        ) : editing ? (
           <div className="dk-editor">
             <textarea aria-label="Текст сценария" value={draft} onChange={(event) => setDraft(event.target.value)} autoFocus />
             <div>
@@ -142,11 +189,11 @@ export function ScriptDesktop({ onHelp }: { onHelp: () => void }) {
           </div>
         ) : (
           <div className="dk-reader-text">
-            {texts[version.id].split("\n\n").map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+            {textOf(version).split("\n\n").map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           </div>
         )}
-        {version.changes.length > 0 && (
-          <details className="dk-changes">
+        {!building && version.changes.length > 0 && (
+          <details className="dk-changes" key={version.id}>
             <summary>Что изменено <ChevronDown /></summary>
             <ul>
               {version.changes.map((change) => <li key={change}><Check /> {change}</li>)}
