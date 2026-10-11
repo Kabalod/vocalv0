@@ -279,7 +279,7 @@ function Header({
           <span className="eyebrow">Сегодня, 10:42</span>
           <h1 ref={largeTitleRef}>{title}</h1>
         </div>
-        <div className="status-anchor"><button className="status" aria-expanded={statusMenu} aria-haspopup="menu" onClick={e=>{e.stopPropagation();setStatusMenu(!statusMenu)}}><i className={status === 'Итоговая' ? 'green' : ''}/>{status}<ChevronsUpDown/></button>{statusMenu&&<div className="apple-menu" role="menu">{['Не завершена','Итоговая'].map(value=><button key={value} role="menuitem" onClick={()=>{setStatus(value);setStatusMenu(false)}}>{value}</button>)}</div>}</div>
+        <div className="status-anchor"><button className="status" aria-expanded={statusMenu} aria-haspopup="menu" onClick={e=>{e.stopPropagation();setStatusMenu(!statusMenu)}}><i className={status === 'Итоговая' ? 'green' : ''} role="img" aria-label={status}/>{status}<ChevronsUpDown/></button>{statusMenu&&<div className="apple-menu" role="menu">{['Не завершена','Итоговая'].map(value=><button key={value} role="menuitem" onClick={()=>{setStatus(value);setStatusMenu(false)}}>{value}</button>)}</div>}</div>
         <button
           className="more-button"
           aria-label="Меню мысли"

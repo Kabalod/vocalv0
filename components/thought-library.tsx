@@ -73,7 +73,24 @@ export default function ThoughtLibrary({
   const [sortOpen, setSortOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const dateDialog = useRef<HTMLDialogElement>(null);
+  const sortSheet = useRef<HTMLElement>(null);
+  const profileSheet = useRef<HTMLElement>(null);
   useEffect(() => { if (dateOpen) dateDialog.current?.showModal(); else dateDialog.current?.close() }, [dateOpen]);
+  useEffect(() => {
+    const panel = sortOpen ? sortSheet.current : profile ? profileSheet.current : null;
+    if (!panel) return;
+    const controls = Array.from(panel.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'));
+    controls[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { sortOpen ? setSortOpen(false) : setProfile(false); return; }
+      if (event.key !== 'Tab' || controls.length === 0) return;
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [sortOpen, profile]);
   const sentinel = useRef<HTMLDivElement>(null);
   const searchButton = useRef<HTMLButtonElement>(null);
   const matches = items
@@ -127,7 +144,7 @@ export default function ThoughtLibrary({
   };
   const badge = (status: number) => (
     <span className={`library-status status-${status}`}>
-      <i />
+      <i role="img" aria-label={statuses[status]} />
       {statuses[status]}
     </span>
   );
@@ -419,21 +436,21 @@ export default function ThoughtLibrary({
         </div>
         <p className="command-help">↑↓ Выбрать · Enter Открыть · Esc Закрыть</p>
       </dialog>
-      <dialog ref={dateDialog} className="library-command date-dialog" onCancel={() => setDateOpen(false)} onClose={() => setDateOpen(false)}>
+      <dialog ref={dateDialog} className="library-command date-dialog" onCancel={() => setDateOpen(false)} onClose={() => setDateOpen(false)} onClick={e => { if (e.target === dateDialog.current) setDateOpen(false) }}>
         <header><h2>Дата</h2><button aria-label="Закрыть выбор даты" onClick={() => setDateOpen(false)}><X /></button></header>
-        <div className="mobile-calendar"><div className="calendar-heading"><strong>Октябрь 2026</strong><button onClick={() => { setDateFilter('all'); setLimit(6) }}>Сбросить</button></div><div className="calendar-week">{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day => <span key={day}>{day}</span>)}</div><div className="calendar-days">{Array.from({ length: 3 }, (_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: 31 }, (_, index) => <button key={index + 1} className={index + 1 === 9 && today ? 'selected has-thought' : [2,5,7,8,9].includes(index + 1) ? 'has-thought' : ''} onClick={() => { setDateFilter(index + 1 === 9 ? 'today' : 'range'); setRangeStart(`2026-10-${String(index + 1).padStart(2,'0')}`); setRangeEnd(`2026-10-${String(index + 1).padStart(2,'0')}`); setLimit(6); setDateOpen(false) }}>{index + 1}</button>)}</div><button className="month-chip" onClick={() => { setDateFilter('all'); setLimit(6); setDateOpen(false) }}>Весь месяц</button></div>
+        <div className="mobile-calendar"><div className="calendar-heading"><button aria-label="Предыдущий месяц">‹</button><strong>Октябрь 2026</strong><button aria-label="Следующий месяц">›</button></div><div className="calendar-presets">{[['today','Сегодня'],['yesterday','Вчера'],['week','Неделя']].map(([value,label])=><button key={value} className={dateFilter===value?'selected':''} onClick={()=>{setDateFilter(value);setLimit(6)}}>{label}</button>)}</div><div className="calendar-week">{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day => <span key={day}>{day}</span>)}</div><div className="calendar-days">{Array.from({ length: 3 }, (_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: 31 }, (_, index) => { const value=`2026-10-${String(index+1).padStart(2,'0')}`; const selectedDay=dateFilter==='range'&&rangeStart===value; return <button key={index + 1} className={`${index+1===9?'today ':''}${selectedDay?'selected ':''}${[2,5,7,8,9].includes(index+1)?'has-thought':''}`} onClick={() => { setDateFilter('range'); setRangeStart(value); setRangeEnd(value); setLimit(6) }}>{index + 1}</button>})}</div><button className={`month-chip ${dateFilter==='all'?'selected':''}`} onClick={() => { setDateFilter('all'); setLimit(6) }}>Весь месяц</button></div>
         <div className="date-options">{[['all', 'Все даты'], ['today', 'Сегодня'], ['yesterday', 'Вчера'], ['week', 'Неделя'], ['range', 'Диапазон']].map(([value, label]) => <button key={value} aria-pressed={dateFilter === value} className={dateFilter === value ? 'selected' : ''} onClick={() => { setDateFilter(value); setLimit(6); if (value !== 'range') setDateOpen(false) }}>{label}</button>)}</div>
         {dateFilter === 'range' && <div className="date-range"><label>С<input type="date" value={rangeStart} max={rangeEnd || undefined} onChange={e => { setRangeStart(e.target.value); setLimit(6) }} /></label><label>По<input type="date" value={rangeEnd} min={rangeStart || undefined} onChange={e => { setRangeEnd(e.target.value); setLimit(6) }} /></label><button onClick={() => setDateOpen(false)} disabled={!!rangeStart && !!rangeEnd && rangeStart > rangeEnd}>Применить</button></div>}
       </dialog>
-      {sortOpen && <div className="sheet-backdrop" onClick={() => setSortOpen(false)}><section className="mobile-sheet sort-sheet" role="dialog" aria-label="Сортировка" onClick={e => e.stopPropagation()}><button className="sheet-grabber" aria-label="Закрыть" onClick={() => setSortOpen(false)} /><h2>Сортировка</h2>{(['new','old'] as const).map(value => <button className={sort === value ? 'selected' : ''} key={value} onClick={() => { setSort(value); setLimit(6); setSortOpen(false) }}>{value === 'new' ? 'Новые' : 'Старые'}</button>)}</section></div>}
+      {sortOpen && <div className="sheet-backdrop" onClick={() => setSortOpen(false)}><section ref={sortSheet} className="mobile-sheet sort-sheet" role="dialog" aria-modal="true" aria-label="Сортировка" onClick={e => e.stopPropagation()}><button className="sheet-grabber" aria-label="Закрыть" onClick={() => setSortOpen(false)} /><h2>Сортировка</h2>{(['new','old'] as const).map(value => <button className={sort === value ? 'selected' : ''} key={value} onClick={() => { setSort(value); setLimit(6); setSortOpen(false) }}>{value === 'new' ? 'Новые' : 'Старые'}</button>)}</section></div>}
       {profile && (
         <div className="sheet-backdrop" onClick={() => setProfile(false)}>
-          <section className="mobile-sheet library-profile-panel" role="dialog" aria-label="Профиль" onClick={e => e.stopPropagation()}>
+          <section ref={profileSheet} className="mobile-sheet library-profile-panel" role="dialog" aria-modal="true" aria-label="Профиль" onClick={e => e.stopPropagation()}>
             <button className="sheet-grabber" aria-label="Закрыть профиль" onClick={() => setProfile(false)} />
             <div className="profile-avatar"><UserRound /></div>
             <h2>Демонстрационный аккаунт Vocal</h2>
             <p>Мысли в этой библиотеке — моковые данные.</p>
-            <div className="quota-card"><strong>Осталось 100 из 100 мыслей</strong><span><i /></span></div>
+            <div className="quota-card"><strong>Осталось 100 из 100 мыслей</strong><span role="progressbar" aria-label="Использование мыслей" aria-valuemin={0} aria-valuemax={100} aria-valuenow={100}><i /></span><div className="quota-footer"><small>Период до 12.11</small><button>Продлить</button></div></div>
             <button className="profile-row"><Settings />Настройки</button>
             <button className="profile-row"><LogOut />Выйти</button>
             <button className="profile-row danger"><Trash2 />Удалить аккаунт</button>
