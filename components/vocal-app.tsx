@@ -24,11 +24,13 @@ import {
 } from "lucide-react";
 
 import ThoughtLibrary from "./thought-library";
+import { NewThoughtModal, StatesGallery, TakeRecorder } from "./vocal-flows";
 import { ThoughtBubble } from './thought-bubble';
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
 import './mobile-ios.css';
+import './vocal-flows.css';
 
 type Tab = "Дубли" | "Диалог" | "Сценарий";
 type RecordingState =
@@ -484,18 +486,18 @@ function ScriptView() {
     </section>
   );
 }
-function DraftsView() {
+function DraftsView({ onRecord }: { onRecord: () => void }) {
   const [takes,setTakes]=useState<number[]>([]), [selected,setSelected]=useState(0), [playing,setPlaying]=useState(false), [position,setPosition]=useState(0);
   useEffect(()=>{if(!playing)return;const timer=setInterval(()=>setPosition(n=>{if(n>=42){setPlaying(false);return 0}return n+1}),1000);return()=>clearInterval(timer)},[playing]);
   const add=()=>{setTakes(list=>[...list,list.length+1]);setSelected(takes.length+1);setPosition(0);setPlaying(false)};
   const wave=<svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true">{Array.from({length:60},(_,i)=><rect key={i} x={i*5} y={12-(3+(i*7%10))} width="2" height={2*(3+(i*7%10))} rx="1"/>)}</svg>;
-  if(takes.length)return <section className="takes-list">{takes.map(id=><div key={id} className={`take-item ${selected===id?'selected':''}`}><div className="take-row"><button aria-label={playing&&selected===id?'Пауза':'Воспроизвести'} onClick={()=>{setSelected(id);setPlaying(selected===id?!playing:true)}}>{playing&&selected===id?<Pause/>:<Play/>}</button><button className="take-title" onClick={()=>setSelected(id)}>Дубль №{id}</button><span>Сегодня, 10:42 · 00:42</span></div>{wave}<p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел.</p>{selected===id&&<div className="take-player">{wave}<input aria-label="Позиция воспроизведения" type="range" min="0" max="42" value={position} onChange={e=>setPosition(Number(e.target.value))}/><div><time>00:{String(position).padStart(2,'0')}</time><time>00:42</time></div></div>}</div>)}<button className="button button-primary" onClick={add}><Mic/>Записать новый дубль</button></section>;
+  if(takes.length)return <section className="takes-list">{takes.map(id=><div key={id} className={`take-item ${selected===id?'selected':''}`}><div className="take-row"><button aria-label={playing&&selected===id?'Пауза':'Воспроизвести'} onClick={()=>{setSelected(id);setPlaying(selected===id?!playing:true)}}>{playing&&selected===id?<Pause/>:<Play/>}</button><button className="take-title" onClick={()=>setSelected(id)}>Дубль №{id}</button><span>Сегодня, 10:42 · 00:42</span></div>{wave}<p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел.</p>{selected===id&&<div className="take-player">{wave}<input aria-label="Позиция воспроизведения" type="range" min="0" max="42" value={position} onChange={e=>setPosition(Number(e.target.value))}/><div><time>00:{String(position).padStart(2,'0')}</time><time>00:42</time></div></div>}</div>)}<button className="button button-primary" onClick={onRecord}><Mic/>Записать новый дубль</button></section>;
   return (
     <section className="drafts-view">
       <Copy />
       <h2>Дубли</h2>
       <p>Здесь появятся ваши голосовые дубли.</p>
-      <button className="button button-primary" onClick={add}>
+      <button className="button button-primary" onClick={onRecord}>
         <Mic /> Записать дубль
       </button>
     </section>
@@ -507,7 +509,11 @@ export default function VocalApp() {
   const [palette, setPalette] = useState(false);
   const [menu, setMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [newThought, setNewThought] = useState(false);
+  const [takeRecorder, setTakeRecorder] = useState(false);
+  const [statesGallery, setStatesGallery] = useState(false);
   const [activeThought, setActiveThought] = useState("Привычка и мотивация");
+  useEffect(() => { setStatesGallery(new URLSearchParams(window.location.search).has("states")); }, []);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
@@ -518,20 +524,27 @@ export default function VocalApp() {
       if (event.key === "Escape") {
         setPalette(false);
         setMenu(false);
+        setConfirmDelete(false);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+  if (statesGallery) return <StatesGallery onClose={() => { history.replaceState(null, "", window.location.pathname); setStatesGallery(false); }} />;
+  if (takeRecorder) return <TakeRecorder onClose={() => setTakeRecorder(false)} />;
   if (showThoughts)
     return (
-      <ThoughtLibrary
-        onOpen={(title) => {
-          setActiveThought(title || "Новая мысль");
-          setShowThoughts(false);
-          setPalette(false);
-        }}
-      />
+      <>
+        <ThoughtLibrary
+          onOpen={(title) => {
+            if (title === "Новая мысль") { setNewThought(true); return; }
+            setActiveThought(title || "Привычка и мотивация");
+            setShowThoughts(false);
+            setPalette(false);
+          }}
+        />
+        <NewThoughtModal open={newThought} onClose={() => setNewThought(false)} onCreate={() => { setNewThought(false); setActiveThought("Новая мысль"); setShowThoughts(false); }} />
+      </>
     );
   return (
     <ThoughtShell
@@ -546,10 +559,10 @@ export default function VocalApp() {
         onThoughts={() => setShowThoughts(true)}
         onOpenMenu={() => setMenu(!menu)}
       />
-      {confirmDelete && <div className="confirm-backdrop"><section className="confirm-alert" role="alertdialog" aria-labelledby="delete-title"><h2 id="delete-title">Удалить мысль?</h2><div><button onClick={() => setConfirmDelete(false)}>Отмена</button><button className="danger" onClick={() => { setConfirmDelete(false); setShowThoughts(true) }}>Удалить</button></div></section></div>}
+      {confirmDelete && <div className="confirm-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setConfirmDelete(false); }}><section className="confirm-alert" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">Удалить мысль?</h2><p className="delete-copy">Дубли и сценарии мысли будут удалены без возможности восстановить</p><div><button onClick={() => setConfirmDelete(false)}>Отмена</button><button className="danger" onClick={() => { setConfirmDelete(false); setShowThoughts(true) }}>Удалить</button></div></section></div>}
       {menu && (
         <div className="thought-menu">
-          <button>
+          <button onClick={() => { setMenu(false); setTakeRecorder(true); }}>
             <Mic />
             Записать дубль
           </button>
@@ -561,7 +574,7 @@ export default function VocalApp() {
       )}
       {tab === "Диалог" && <Dialog />}
       {tab === "Сценарий" && <ScriptView />}
-      {tab === "Дубли" && <DraftsView />}
+      {tab === "Дубли" && <DraftsView onRecord={() => setTakeRecorder(true)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
     </ThoughtShell>
   );

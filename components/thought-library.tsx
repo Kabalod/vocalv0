@@ -17,8 +17,10 @@ import {
   Settings,
   LogOut,
   Trash2,
+  Lock,
 } from "lucide-react";
 import "./thought-library.css";
+import { QuotaState } from "./vocal-flows";
 
 type Layout = "desk" | "grid" | "list";
 const statuses = ["Не завершена", "В работе", "Завершена"];
@@ -71,10 +73,12 @@ export default function ThoughtLibrary({
   const [selected, setSelected] = useState(0);
   const [profile, setProfile] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [quotaExhausted, setQuotaExhausted] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const dateDialog = useRef<HTMLDialogElement>(null);
   const sortSheet = useRef<HTMLElement>(null);
   const profileSheet = useRef<HTMLElement>(null);
+  useEffect(() => { setQuotaExhausted(new URLSearchParams(window.location.search).has("quota")); }, []);
   useEffect(() => { if (dateOpen) dateDialog.current?.showModal(); else dateDialog.current?.close() }, [dateOpen]);
   useEffect(() => {
     const panel = sortOpen ? sortSheet.current : profile ? profileSheet.current : null;
@@ -292,8 +296,8 @@ export default function ThoughtLibrary({
               </button>
             ))}
           </div>
-          <button className="library-new" onClick={() => onOpen("Новая мысль")}>
-            <Mic /> Новая мысль
+          <button className="library-new" disabled={quotaExhausted} onClick={() => onOpen("Новая мысль")}>
+            {quotaExhausted ? <Lock /> : <Mic />} Новая мысль
           </button>
           <div className="library-layouts" aria-label="Раскладка">
             {(
@@ -318,6 +322,7 @@ export default function ThoughtLibrary({
           <div className="mobile-filters">{filters}</div>
         </header>
         <div className={`library-content layout-${layout}`}>
+          {quotaExhausted && <QuotaState compact />}
           <div className="library-context">
             <span>{today ? "Сегодня" : "Ваша библиотека"}</span>
             <span>{matches.length.toLocaleString("ru-RU")} мыслей</span>
@@ -339,8 +344,8 @@ export default function ThoughtLibrary({
           {matches.length === 0 && (
             <div className="library-empty">
               <Search />
-              <h2>Мыслей не найдено</h2>
-              <p>Попробуйте другой запрос или статус.</p>
+              <h2>Ничего не найдено</h2>
+              <button onClick={() => { setQuery(""); setFilter(-1); setDateFilter("all"); }}>Сбросить фильтры</button>
             </div>
           )}
           <div ref={sentinel} className="library-sentinel" />
@@ -363,13 +368,14 @@ export default function ThoughtLibrary({
           <LayoutGrid />
           Мысли
         </button>
-        <button
-          className="library-new-mic"
-          aria-label="Новая мысль"
-          onClick={() => onOpen("Новая мысль")}
-        >
-          <Mic />
-        </button>
+          <button
+            className="library-new-mic"
+            aria-label={quotaExhausted ? "Лимит мыслей исчерпан" : "Новая мысль"}
+            disabled={quotaExhausted}
+            onClick={() => onOpen("Новая мысль")}
+          >
+            {quotaExhausted ? <Lock /> : <Mic />}
+          </button>
         <button onClick={() => setProfile(true)}>
           <UserRound />
           Профиль
