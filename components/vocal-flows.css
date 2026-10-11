@@ -11,4 +11,7 @@
 .new-thought-card::-webkit-scrollbar{display:none}
 .new-thought-modal footer{position:sticky;bottom:0;padding:10px 16px calc(14px + env(safe-area-inset-bottom));background:#202023}
 .video-upload{width:100%;height:44px;min-height:44px;justify-content:center}
+.new-thought-modal footer button{height:44px;min-height:44px;white-space:nowrap}
+.new-thought-modal footer .flow-ghost{flex:0 0 auto;min-width:96px}
+.new-thought-modal footer .flow-primary{flex:1}
 }
