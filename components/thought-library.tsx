@@ -20,7 +20,7 @@ import {
   Lock,
 } from "lucide-react";
 import "./thought-library.css";
-import { QuotaState } from "./vocal-flows";
+import { OfflineBanner, QuotaState, useQueryFlag } from "./vocal-flows";
 import { MonthCalendar, dateFilterLabel, type DatePreset } from "./month-calendar";
 
 type Layout = "desk" | "grid" | "list";
@@ -84,6 +84,9 @@ export default function ThoughtLibrary({
   const [profile, setProfile] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [quotaExhausted, setQuotaExhausted] = useState(false);
+  const emptyLibrary = useQueryFlag("empty");
+  const offline = useQueryFlag("offline");
+  const source = emptyLibrary ? [] : items;
   const dialog = useRef<HTMLDialogElement>(null);
   const dateDialog = useRef<HTMLDialogElement>(null);
   const sortSheet = useRef<HTMLElement>(null);
@@ -107,7 +110,7 @@ export default function ThoughtLibrary({
   }, [sortOpen, profile]);
   const sentinel = useRef<HTMLDivElement>(null);
   const searchButton = useRef<HTMLButtonElement>(null);
-  const matches = items
+  const matches = source
     .filter((item) => {
       const date = dateOf(item.id);
       const dateMatches =
@@ -126,7 +129,7 @@ export default function ThoughtLibrary({
       );
     })
     .sort((a, b) => (sort === "new" ? a.id - b.id : b.id - a.id));
-  const results = items
+  const results = source
     .filter((item) =>
       `${item.title} ${item.text}`
         .toLowerCase()
@@ -153,7 +156,7 @@ export default function ThoughtLibrary({
     else dialog.current?.close();
   }, [palette]);
 
-  const marked = useMemo(() => new Set(items.map((item) => dateOf(item.id))), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const marked = useMemo(() => new Set(source.map((item) => dateOf(item.id))), [emptyLibrary]); // eslint-disable-line react-hooks/exhaustive-deps
   const pickPreset = (value: DatePreset) => { setDateFilter(value); setLimit(6); setDateOpen(false); };
   const pickDay = (value: string) => { setDateFilter("range"); setRangeStart(value); setRangeEnd(value); setLimit(6); setDateOpen(false); };
   const pickMonth = () => { setDateFilter("month"); setMonthValue(`${view.year}-${String(view.month + 1).padStart(2, "0")}`); setLimit(6); setDateOpen(false); };
@@ -262,7 +265,7 @@ export default function ThoughtLibrary({
             )}
             {name === "Завершена" ? "Завершена" : name}
           </span>
-          {index === 0 && <small>{items.length.toLocaleString("ru-RU")}</small>}
+          {index === 0 && <small>{source.length.toLocaleString("ru-RU")}</small>}
         </button>
       ))}
     </>
@@ -364,6 +367,7 @@ export default function ThoughtLibrary({
           <div className="mobile-filters">{filters}</div>
         </header>
         <div className={`library-content layout-${layout}`}>
+          {offline && <OfflineBanner />}
           {quotaExhausted && <QuotaState compact />}
           {activeDate && (
             <div className="active-filters" role="status">
@@ -378,6 +382,14 @@ export default function ThoughtLibrary({
             <span>Ваша библиотека</span>
             <span>{matches.length.toLocaleString("ru-RU")} {pluralThoughts(matches.length)}</span>
           </div>
+          {emptyLibrary ? (
+            <article className="state-card empty-state library-first-run">
+              <button className="empty-mic" aria-label="Записать первую мысль" disabled={quotaExhausted} onClick={() => onOpen("Новая мысль")}><Mic /></button>
+              <h2>Запишите первую мысль</h2>
+              <p>Расскажите голосом или напишите текст.</p>
+            </article>
+          ) : (
+          <>
           {layout === "desk" && (
             <h2 className="mobile-section-title">На столе сейчас</h2>
           )}
@@ -392,7 +404,9 @@ export default function ThoughtLibrary({
           <section className="library-rows" aria-label="Список мыслей">
             {matches.slice(0, limit).map(row)}
           </section>
-          {matches.length === 0 && (
+          </>
+          )}
+          {!emptyLibrary && matches.length === 0 && (
             <div className="library-empty">
               <Search />
               <h2>Ничего не найдено</h2>
@@ -400,7 +414,7 @@ export default function ThoughtLibrary({
             </div>
           )}
           <div ref={sentinel} className="library-sentinel" />
-          <div className="library-pagination">
+          {!emptyLibrary && <div className="library-pagination">
             <button
               disabled={limit >= matches.length}
               onClick={() => setLimit((n) => n + 6)}
@@ -411,7 +425,7 @@ export default function ThoughtLibrary({
                 ? ` · Ещё ${Math.min(6, matches.length - limit)}`
                 : " · Все мысли загружены"}
             </button>
-          </div>
+          </div>}
         </div>
       </main>
       <nav className="library-bottom" aria-label="Мобильная навигация">

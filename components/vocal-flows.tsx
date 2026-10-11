@@ -3,7 +3,21 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Camera, FileWarning, Lock, Mic, RotateCcw, Video, WifiOff, X } from "lucide-react";
 
-type RecordingPhase = "ready" | "recording" | "processing" | "review";
+type RecordingPhase = "ready" | "recording" | "processing" | "review" | "denied";
+
+/** Preview switch for states that need a real device condition: ?name or ?name=value in the URL. */
+export function useQueryFlag(name: string, value?: string) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setOn(value === undefined ? params.has(name) : params.get(name) === value);
+  }, [name, value]);
+  return on;
+}
+
+export function OfflineBanner() {
+  return <div className="offline-banner" role="status"><WifiOff /><span>Нет соединения. Ответ сохранится и отправится позже</span><button>Повторить</button></div>;
+}
 
 function useModalKeys(open: boolean, onClose: () => void, ref: React.RefObject<HTMLElement | null>) {
   useEffect(() => {
@@ -40,6 +54,9 @@ export function NewThoughtModal({ open, onClose, onCreate }: { open: boolean; on
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [denied, setDenied] = useState(false);
+  const micDenied = useQueryFlag("mic", "denied");
+  const offline = useQueryFlag("offline");
   const panel = useRef<HTMLElement>(null);
   useModalKeys(open, onClose, panel);
   useKeyboardInset(open);
@@ -54,7 +71,8 @@ export function NewThoughtModal({ open, onClose, onCreate }: { open: boolean; on
       <button className="flow-grabber" aria-label="Закрыть" onClick={onClose} />
       <header><h2 id="new-thought-title">Новая мысль</h2><button className="flow-close" aria-label="Закрыть" onClick={onClose}><X /></button></header>
       <div className="new-thought-card">
-        {recording ? <div className="inline-recording" role="status"><button className="record-stop" aria-label="Остановить запись" onClick={() => setRecording(false)}><span /></button><strong>{String(Math.floor(seconds / 60)).padStart(2,"0")}:{String(seconds % 60).padStart(2,"0")}</strong><div className="flow-wave" aria-hidden="true">{Array.from({length:18},(_,i)=><i key={i}/>)}</div></div> : <div className="new-mic"><button aria-label="Нажмите и расскажите мысль" onClick={() => { setSeconds(0); setRecording(true); }}><Mic /></button><span>Нажмите и расскажите мысль</span></div>}
+        {recording ? <div className="inline-recording" role="status"><button className="record-stop" aria-label="Остановить запись" onClick={() => setRecording(false)}><span /></button><strong>{String(Math.floor(seconds / 60)).padStart(2,"0")}:{String(seconds % 60).padStart(2,"0")}</strong><div className="flow-wave" aria-hidden="true">{Array.from({length:18},(_,i)=><i key={i}/>)}</div></div> : denied ? <div className="mic-denied" role="alert"><strong>Нет доступа к микрофону</strong><span>Разрешите доступ в настройках браузера</span><button onClick={() => setDenied(false)}>Повторить</button></div> : <div className="new-mic"><button aria-label="Нажмите и расскажите мысль" onClick={() => { if (micDenied) { setDenied(true); return; } setSeconds(0); setRecording(true); }}><Mic /></button><span>Нажмите и расскажите мысль</span></div>}
+        {offline && <OfflineBanner />}
         <textarea rows={3} value={text} onChange={event => setText(event.target.value)} placeholder="Или напишите мысль" aria-label="Или напишите мысль" />
         <button className="video-upload" aria-label="Загрузить видео" title="Загрузить видео"><Video /><span>Видео</span></button>
       </div>
@@ -70,6 +88,8 @@ export function TakeRecorder({ onClose }: { onClose: () => void }) {
   const [microphone, setMicrophone] = useState(true);
   const [scroll, setScroll] = useState(true);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const micDenied = useQueryFlag("mic", "denied");
+  const offline = useQueryFlag("offline");
   const cancelPanel = useRef<HTMLElement>(null);
   useModalKeys(confirmCancel, () => setConfirmCancel(false), cancelPanel);
   const [transcript, setTranscript] = useState("Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел, потому что так уже делал вчера.");
@@ -81,12 +101,14 @@ export function TakeRecorder({ onClose }: { onClose: () => void }) {
   const stop = () => { setPhase("processing"); window.setTimeout(() => setPhase("review"), 1800); };
   return <main className="take-recorder">
     <header className="take-header"><button onClick={onClose}><ArrowLeft /> К пути</button><h1>Запись дубля 5</h1></header>
+    {offline && <OfflineBanner />}
     <div className="take-layout">
       <section className="teleprompter"><button className="hide-script">Скрыть</button><p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел, потому что так уже делал вчера. Привычка держится не на желании, а на простом первом шаге: надеть кроссовки.</p></section>
       <aside className="take-controls">
         <div className={`camera-preview ${camera ? "" : "off"}`}><Camera /><span>{camera ? "Камера" : "Камера выключена"}</span></div>
         <div className="device-toggles"><button className={camera ? "active" : ""} aria-label="Камера" aria-pressed={camera} onClick={() => setCamera(!camera)}><Camera /></button><button className={microphone ? "active" : ""} aria-label="Микрофон" aria-pressed={microphone} onClick={() => setMicrophone(!microphone)}><Mic /></button></div>
-        {phase === "ready" && <button className="start-take" onClick={() => { setSeconds(0); setPhase("recording"); }}><span />Начать запись</button>}
+        {phase === "ready" && <button className="start-take" onClick={() => { if (micDenied) { setPhase("denied"); return; } setSeconds(0); setPhase("recording"); }}><span />Начать запись</button>}
+        {phase === "denied" && <div className="take-denied" role="alert"><strong>Нет доступа к микрофону</strong><p>Разрешите доступ в настройках браузера</p><button className="flow-primary" onClick={() => setPhase("ready")}>Повторить</button></div>}
         {phase === "recording" && <div className="active-take"><time>{String(Math.floor(seconds/60)).padStart(2,"0")}:{String(seconds%60).padStart(2,"0")}</time><div className="flow-wave">{Array.from({length:18},(_,i)=><i key={i}/>)}</div><label><input type="checkbox" checked={scroll} onChange={event=>setScroll(event.target.checked)}/>Прокрутка</label><button className="stop-take" onClick={stop}><span />Стоп</button><button className="cancel-take" onClick={() => setConfirmCancel(true)}>Отмена</button></div>}
         {phase === "processing" && <div className="take-processing" role="status"><strong>Расшифровываем…</strong><span><i /></span><p>Можно закрыть экран, расшифровка продолжится</p></div>}
         {phase === "review" && <div className="take-review"><label htmlFor="take-transcript">Расшифровка</label><textarea id="take-transcript" value={transcript} onChange={event=>setTranscript(event.target.value)} /><button className="flow-primary">Сохранить дубль</button><button className="flow-ghost" onClick={() => setPhase("ready")}>Записать заново</button></div>}
@@ -107,7 +129,7 @@ export function QuotaState({ compact = false }: { compact?: boolean }) {
 export function StatesGallery({ onClose }: { onClose: () => void }) {
   const [count, setCount] = useState(60);
   useEffect(() => { const timer=window.setInterval(()=>setCount(n=>Math.max(0,n-1)),1000); return()=>clearInterval(timer) },[]);
-  return <main className="states-gallery"><header><div><span>Vocal UI</span><h1>States</h1></div><button onClick={onClose}><X />Закрыть</button></header><div className="offline-banner"><WifiOff /><span>Нет соединения. Ответ сохранится и отправится позже</span><button>Повторить</button></div><section className="states-grid">
+  return <main className="states-gallery"><header><div><span>Vocal UI</span><h1>States</h1></div><button onClick={onClose}><X />Закрыть</button></header><OfflineBanner /><section className="states-grid">
     <StateCard icon={<Mic/>} title="Нет доступа к микрофону" text="Разрешите доступ в настройках браузера"><button>Открыть инструкцию</button><button>Повторить</button></StateCard>
     <StateCard icon={<Mic/>} title="Не расслышали" text="Говорите чуть громче или ближе к микрофону"><button>Записать заново</button></StateCard>
     <StateCard icon={<span className="spinner"/>} title="Расшифровываем…" text="Можно закрыть экран, расшифровка продолжится"><button>Закрыть</button></StateCard>
