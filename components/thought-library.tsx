@@ -184,6 +184,11 @@ export default function ThoughtLibrary({
     panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
     panel.querySelector<HTMLButtonElement>(".calendar-days button")?.focus({ preventScroll: true });
   };
+  // Desktop opens the full profile page; smaller screens keep the bottom sheet.
+  const openProfile = () => {
+    if (window.matchMedia("(min-width:1024px)").matches) onOpen("Профиль");
+    else setProfile(true);
+  };
   const changeLayout = (value: Layout) => {
     setLayout(value);
     localStorage.setItem("vocal-library-layout", value);
@@ -291,7 +296,7 @@ export default function ThoughtLibrary({
         <section id="sidebar-calendar" ref={calendarRef} className="sidebar-calendar" aria-label="Календарь">
           {calendar(false)}
         </section>
-        <button className="library-profile" onClick={() => setProfile(true)}>
+        <button className="library-profile" onClick={openProfile}>
           <UserRound /> Профиль
         </button>
       </aside>
@@ -441,7 +446,7 @@ export default function ThoughtLibrary({
           >
             {quotaExhausted ? <Lock /> : <Mic />}
           </button>
-        <button onClick={() => setProfile(true)}>
+        <button onClick={openProfile}>
           <UserRound />
           Профиль
         </button>

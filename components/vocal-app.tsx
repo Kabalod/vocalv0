@@ -26,6 +26,7 @@ import {
 import ThoughtLibrary from "./thought-library";
 import { NewThoughtModal, StatesGallery, TakeRecorder } from "./vocal-flows";
 import { ThoughtBubble } from './thought-bubble';
+import { ProfilePage, ScriptDesktop, readingScript, useIsDesktop } from "./desktop-views";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -312,7 +313,7 @@ function Header({
     </header>
   );
 }
-function Dialog() {
+function Dialog({ desktop = false, onBuildScript }: { desktop?: boolean; onBuildScript?: () => void }) {
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState<RecordingState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -340,13 +341,15 @@ function Dialog() {
     return () => window.clearTimeout(timer);
   }, [recording, seconds]);
   const start = () => { setSeconds(0); setTranscript(''); setRecording('recording'); };
-  return (
-    <section className="dialog-view">
+  const thread = (
       <div className="conversation">
-        <time className="conversation-time">Сегодня, 10:42</time>
-        {messages.map((message, index) => <ThoughtBubble key={index} {...message} grouped={messages[index+1]?.role===message.role || (index===messages.length-1 && sent.length>0)}/>)}
-        {sent.map((text,index)=><ThoughtBubble key={`sent-${index}`} text={text} role="author" grouped={index<sent.length-1}/>)}
-      </div>
+      <time className="conversation-time">Сегодня, 10:42</time>
+      {messages.map((message, index) => <ThoughtBubble key={index} {...message} grouped={messages[index+1]?.role===message.role || (index===messages.length-1 && sent.length>0)}/>)}
+      {sent.map((text,index)=><ThoughtBubble key={`sent-${index}`} text={text} role="author" grouped={index<sent.length-1}/>)}
+    </div>
+  );
+  const panels = (
+    <>
       {recording === 'recording' && <div className="recording-status" role="status"><Mic className="desktop-recording-mic" /><div className="recording-wave" aria-hidden="true">{Array.from({length: 15}, (_, i) => <i key={i} style={{animationDelay: `${i * 0.09}s`}} />)}</div><p>Идёт запись · {String(Math.floor(seconds / 60)).padStart(2, '0')}:{String(seconds % 60).padStart(2, '0')}</p><div><button className="button button-primary" onClick={() => setRecording('transcribing')}><StopCircle /> Стоп</button><button className="button button-outline" aria-label="Отмена" onClick={() => setRecording('idle')}><X /></button></div></div>}
       {recording === 'recording' && <p className="record-caption">Нажмите и говорите</p>}
       {recording === 'error' && <div className="recording-status" role="alert"><p>Не расслышали</p><button className="button button-outline" onClick={start}>Записать заново</button></div>}
@@ -387,6 +390,10 @@ function Dialog() {
           </div>
         </div>
       )}
+    </>
+  );
+  const composer = (
+    <>
       {recording === "idle" && (
         <div className="voice-composer">
           <div className="mic-area">
@@ -420,6 +427,39 @@ function Dialog() {
           </form>
         </div>
       )}
+    </>
+  );
+  if (desktop) {
+    const script = readingScript();
+    const reply = (text: string) => setSent(previous => [...previous, text]);
+    return (
+      <section className="dk-dialog">
+        <article className="dk-script" aria-label="Сценарий для чтения">
+          <p className="dk-caption">{script.caption}</p>
+          <div className="dk-script-text">{script.text.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div>
+        </article>
+        <aside className="dk-chat" aria-label="Диалог с Vocal">
+          <div className="dk-chat-head"><strong>Диалог с Vocal</strong><span>Уточняющие вопросы по сценарию</span></div>
+          <div className="dk-chat-scroll">{thread}{panels}</div>
+          <div className="dk-chat-foot">
+            {recording === "idle" && (
+              <div className="dk-chips">
+                <button onClick={() => reply("Не помню")}>Не помню</button>
+                <button onClick={() => reply("Пропустить вопрос")}>Пропустить вопрос</button>
+                <button className="primary" onClick={onBuildScript}>Собрать сценарий</button>
+              </div>
+            )}
+            {composer}
+          </div>
+        </aside>
+      </section>
+    );
+  }
+  return (
+    <section className="dialog-view">
+      {thread}
+      {panels}
+      {composer}
     </section>
   );
 }
@@ -504,6 +544,8 @@ function DraftsView({ onRecord }: { onRecord: () => void }) {
   );
 }
 export default function VocalApp() {
+  const desktop = useIsDesktop();
+  const [profilePage, setProfilePage] = useState(false);
   const [tab, setTab] = useState<Tab>("Диалог");
   const [showThoughts, setShowThoughts] = useState(true);
   const [palette, setPalette] = useState(false);
@@ -532,12 +574,14 @@ export default function VocalApp() {
   }, []);
   if (statesGallery) return <StatesGallery onClose={() => { history.replaceState(null, "", window.location.pathname); setStatesGallery(false); }} />;
   if (takeRecorder) return <TakeRecorder onClose={() => setTakeRecorder(false)} />;
+  if (profilePage) return <ProfilePage onBack={() => setProfilePage(false)} />;
   if (showThoughts)
     return (
       <>
         <ThoughtLibrary
           onOpen={(title) => {
             if (title === "Новая мысль") { setNewThought(true); return; }
+            if (title === "Профиль") { setProfilePage(true); return; }
             setActiveThought(title || "Привычка и мотивация");
             setShowThoughts(false);
             setPalette(false);
@@ -572,8 +616,8 @@ export default function VocalApp() {
           </button>
         </div>
       )}
-      {tab === "Диалог" && <Dialog />}
-      {tab === "Сценарий" && <ScriptView />}
+      {tab === "Диалог" && <Dialog desktop={desktop} onBuildScript={() => setTab("Сценарий")} />}
+      {tab === "Сценарий" && (desktop ? <ScriptDesktop onHelp={() => setTab("Диалог")} /> : <ScriptView />)}
       {tab === "Дубли" && <DraftsView onRecord={() => setTakeRecorder(true)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
     </ThoughtShell>
