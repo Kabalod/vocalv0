@@ -25,6 +25,13 @@ import { MonthCalendar, dateFilterLabel, type DatePreset } from "./month-calenda
 
 type Layout = "desk" | "grid" | "list";
 const statuses = ["Не завершена", "В работе", "Завершена"];
+const pluralThoughts = (count: number) => {
+  const tail = count % 100;
+  if (tail >= 11 && tail <= 14) return "мыслей";
+  const last = count % 10;
+  if (last === 1) return "мысль";
+  return last >= 2 && last <= 4 ? "мысли" : "мыслей";
+};
 const titles = [
   "Привычка и мотивация",
   "Искренний коннект с немногими",
@@ -358,16 +365,18 @@ export default function ThoughtLibrary({
         </header>
         <div className={`library-content layout-${layout}`}>
           {quotaExhausted && <QuotaState compact />}
-          <div className="library-context">
-            {activeDate ? (
+          {activeDate && (
+            <div className="active-filters" role="status">
               <span className="date-chip">
                 {activeDate}
                 <button type="button" aria-label="Сбросить фильтр по дате" onClick={resetDate}><X /></button>
               </span>
-            ) : (
-              <span>Ваша библиотека</span>
-            )}
-            <span>{matches.length.toLocaleString("ru-RU")} мыслей</span>
+              <span>{matches.length.toLocaleString("ru-RU")} {pluralThoughts(matches.length)}</span>
+            </div>
+          )}
+          <div className="library-context">
+            <span>Ваша библиотека</span>
+            <span>{matches.length.toLocaleString("ru-RU")} {pluralThoughts(matches.length)}</span>
           </div>
           {layout === "desk" && (
             <h2 className="mobile-section-title">На столе сейчас</h2>
