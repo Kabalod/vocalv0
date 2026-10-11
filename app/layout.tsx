@@ -1,19 +1,6 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Literata, Inter } from 'next/font/google'
 import './globals.css'
-
-const newsreader = Literata({
-  subsets: ['cyrillic'],
-  weight: ['400', '500'],
-  display: 'swap',
-  variable: '--font-serif',
-})
-const inter = Inter({
-  subsets: ['cyrillic'],
-  display: 'swap',
-  variable: '--font-inter',
-})
 
 export const metadata: Metadata = {
   title: 'Vocal — Привычка и мотивация',
@@ -50,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru">
-      <body className={`antialiased ${newsreader.variable} ${inter.variable}`}>
+      <body className="antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
