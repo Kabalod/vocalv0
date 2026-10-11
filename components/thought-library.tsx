@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import "./thought-library.css";
 import { QuotaState } from "./vocal-flows";
+import { MonthCalendar, dateFilterLabel, type DatePreset } from "./month-calendar";
 
 type Layout = "desk" | "grid" | "list";
 const statuses = ["Не завершена", "В работе", "Завершена"];
@@ -61,10 +62,12 @@ export default function ThoughtLibrary({
   const [dateOpen, setDateOpen] = useState(false);
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
-  const today = dateFilter === "today";
+  const [monthValue, setMonthValue] = useState("");
+  const [view, setView] = useState({ year: 2026, month: 9 });
+  const calendarRef = useRef<HTMLElement>(null);
   const dateOf = (id: number) => {
     const date = new Date("2026-10-09T12:00:00Z");
-    date.setUTCDate(date.getUTCDate() - Math.floor(id / 3));
+    date.setUTCDate(date.getUTCDate() - (Math.floor(id / 3) + Math.floor(id / 9)));
     return date.toISOString().slice(0, 10);
   };
   const [limit, setLimit] = useState(6);
@@ -105,6 +108,7 @@ export default function ThoughtLibrary({
         (dateFilter === "today" && date === "2026-10-09") ||
         (dateFilter === "yesterday" && date === "2026-10-08") ||
         (dateFilter === "week" && date >= "2026-10-03") ||
+        (dateFilter === "month" && date.startsWith(monthValue)) ||
         (dateFilter === "range" &&
           (!rangeStart || date >= rangeStart) &&
           (!rangeEnd || date <= rangeEnd));
@@ -142,6 +146,34 @@ export default function ThoughtLibrary({
     else dialog.current?.close();
   }, [palette]);
 
+  const marked = useMemo(() => new Set(items.map((item) => dateOf(item.id))), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const pickPreset = (value: DatePreset) => { setDateFilter(value); setLimit(6); setDateOpen(false); };
+  const pickDay = (value: string) => { setDateFilter("range"); setRangeStart(value); setRangeEnd(value); setLimit(6); setDateOpen(false); };
+  const pickMonth = () => { setDateFilter("month"); setMonthValue(`${view.year}-${String(view.month + 1).padStart(2, "0")}`); setLimit(6); setDateOpen(false); };
+  const resetDate = () => { setDateFilter("all"); setRangeStart(""); setRangeEnd(""); setMonthValue(""); setLimit(6); };
+  const calendar = (inSheet: boolean) => (
+    <MonthCalendar
+      year={view.year}
+      month={view.month}
+      onMonthChange={(year, month) => setView({ year, month })}
+      marked={marked}
+      today="2026-10-09"
+      dateFilter={dateFilter}
+      rangeStart={rangeStart}
+      monthValue={monthValue}
+      onPreset={pickPreset}
+      onDay={pickDay}
+      onWholeMonth={pickMonth}
+      onReset={() => { resetDate(); if (inSheet) setDateOpen(false); }}
+    />
+  );
+  const activeDate = dateFilterLabel(dateFilter, rangeStart, monthValue);
+  const focusCalendar = () => {
+    const panel = calendarRef.current;
+    if (!panel) return;
+    panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    panel.querySelector<HTMLButtonElement>(".calendar-days button")?.focus({ preventScroll: true });
+  };
   const changeLayout = (value: Layout) => {
     setLayout(value);
     localStorage.setItem("vocal-library-layout", value);
@@ -236,8 +268,8 @@ export default function ThoughtLibrary({
         </a>
         <button
           className="library-date"
-          onClick={() => setDateOpen(true)}
-          aria-haspopup="dialog"
+          onClick={focusCalendar}
+          aria-controls="sidebar-calendar"
         >
           <CalendarDays /> Дата
         </button>
@@ -246,6 +278,9 @@ export default function ThoughtLibrary({
         </div>
         <p className="filter-label">СТАТУС</p>
         <div className="library-filters">{filters}</div>
+        <section id="sidebar-calendar" ref={calendarRef} className="sidebar-calendar" aria-label="Календарь">
+          {calendar(false)}
+        </section>
         <button className="library-profile" onClick={() => setProfile(true)}>
           <UserRound /> Профиль
         </button>
@@ -324,7 +359,14 @@ export default function ThoughtLibrary({
         <div className={`library-content layout-${layout}`}>
           {quotaExhausted && <QuotaState compact />}
           <div className="library-context">
-            <span>{today ? "Сегодня" : "Ваша библиотека"}</span>
+            {activeDate ? (
+              <span className="date-chip">
+                {activeDate}
+                <button type="button" aria-label="Сбросить фильтр по дате" onClick={resetDate}><X /></button>
+              </span>
+            ) : (
+              <span>Ваша библиотека</span>
+            )}
             <span>{matches.length.toLocaleString("ru-RU")} мыслей</span>
           </div>
           {layout === "desk" && (
@@ -444,9 +486,7 @@ export default function ThoughtLibrary({
       </dialog>
       <dialog ref={dateDialog} className="library-command date-dialog" onCancel={() => setDateOpen(false)} onClose={() => setDateOpen(false)} onClick={e => { if (e.target === dateDialog.current) setDateOpen(false) }}>
         <header><h2>Дата</h2><button aria-label="Закрыть выбор даты" onClick={() => setDateOpen(false)}><X /></button></header>
-        <div className="mobile-calendar"><div className="calendar-heading"><button aria-label="Предыдущий месяц">‹</button><strong>Октябрь 2026</strong><button aria-label="Следующий месяц">›</button></div><div className="calendar-presets">{[['today','Сегодня'],['yesterday','Вчера'],['week','Неделя']].map(([value,label])=><button key={value} className={dateFilter===value?'selected':''} onClick={()=>{setDateFilter(value);setLimit(6)}}>{label}</button>)}</div><div className="calendar-week">{['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(day => <span key={day}>{day}</span>)}</div><div className="calendar-days">{Array.from({ length: 3 }, (_, index) => <span key={`blank-${index}`} />)}{Array.from({ length: 31 }, (_, index) => { const value=`2026-10-${String(index+1).padStart(2,'0')}`; const selectedDay=dateFilter==='range'&&rangeStart===value; return <button key={index + 1} className={`${index+1===9?'today ':''}${selectedDay?'selected ':''}${[2,5,7,8,9].includes(index+1)?'has-thought':''}`} onClick={() => { setDateFilter('range'); setRangeStart(value); setRangeEnd(value); setLimit(6) }}>{index + 1}</button>})}</div><button className={`month-chip ${dateFilter==='all'?'selected':''}`} onClick={() => { setDateFilter('all'); setLimit(6) }}>Весь месяц</button></div>
-        <div className="date-options">{[['all', 'Все даты'], ['today', 'Сегодня'], ['yesterday', 'Вчера'], ['week', 'Неделя'], ['range', 'Диапазон']].map(([value, label]) => <button key={value} aria-pressed={dateFilter === value} className={dateFilter === value ? 'selected' : ''} onClick={() => { setDateFilter(value); setLimit(6); if (value !== 'range') setDateOpen(false) }}>{label}</button>)}</div>
-        {dateFilter === 'range' && <div className="date-range"><label>С<input type="date" value={rangeStart} max={rangeEnd || undefined} onChange={e => { setRangeStart(e.target.value); setLimit(6) }} /></label><label>По<input type="date" value={rangeEnd} min={rangeStart || undefined} onChange={e => { setRangeEnd(e.target.value); setLimit(6) }} /></label><button onClick={() => setDateOpen(false)} disabled={!!rangeStart && !!rangeEnd && rangeStart > rangeEnd}>Применить</button></div>}
+        {calendar(true)}
       </dialog>
       {sortOpen && <div className="sheet-backdrop" onClick={() => setSortOpen(false)}><section ref={sortSheet} className="mobile-sheet sort-sheet" role="dialog" aria-modal="true" aria-label="Сортировка" onClick={e => e.stopPropagation()}><button className="sheet-grabber" aria-label="Закрыть" onClick={() => setSortOpen(false)} /><h2>Сортировка</h2>{(['new','old'] as const).map(value => <button className={sort === value ? 'selected' : ''} key={value} onClick={() => { setSort(value); setLimit(6); setSortOpen(false) }}>{value === 'new' ? 'Новые' : 'Старые'}</button>)}</section></div>}
       {profile && (

@@ -23,12 +23,26 @@ function useModalKeys(open: boolean, onClose: () => void, ref: React.RefObject<H
   }, [open, onClose, ref]);
 }
 
+/** Exposes the on-screen keyboard height as --kb so bottom sheets can rise above it (iOS Safari). */
+function useKeyboardInset(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const viewport = window.visualViewport;
+    const update = () => document.documentElement.style.setProperty("--kb", `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`);
+    update();
+    viewport?.addEventListener("resize", update);
+    viewport?.addEventListener("scroll", update);
+    return () => { viewport?.removeEventListener("resize", update); viewport?.removeEventListener("scroll", update); document.documentElement.style.removeProperty("--kb"); };
+  }, [active]);
+}
+
 export function NewThoughtModal({ open, onClose, onCreate }: { open: boolean; onClose: () => void; onCreate: () => void }) {
   const [text, setText] = useState("");
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const panel = useRef<HTMLElement>(null);
   useModalKeys(open, onClose, panel);
+  useKeyboardInset(open);
   useEffect(() => {
     if (!recording) return;
     const timer = window.setInterval(() => setSeconds(value => value + 1), 1000);
