@@ -13,7 +13,7 @@ import {
   Square,
   Trash2,
 } from "lucide-react";
-import { ResourceMeter } from "./resource";
+import { ResourceMeter, wholePercent } from "./resource";
 import "./account.css";
 
 export type Sub = "active" | "none" | "expired";
@@ -118,7 +118,7 @@ export function ProfilePage({
   const [refundSent, setRefundSent] = useState(false);
   const [added, setAdded] = useState(false);
   const close = () => { setModal(null); setDictating(false); };
-  const used = 100 - resource;
+  const used = 100 - wholePercent(resource);
   const active = sub === "active";
   const status =
     sub === "active" ? `Активна до ${until}${autoRenew ? "" : " · не продлевается"}` : sub === "none" ? "Не оплачена" : "Закончилась 12.10";

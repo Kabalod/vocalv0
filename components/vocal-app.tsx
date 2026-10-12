@@ -28,7 +28,7 @@ import ThoughtLibrary from "./thought-library";
 import { NewThoughtModal, StatesGallery, TakeRecorder, QuotaState, useQueryFlag, useQueryParam } from "./vocal-flows";
 import { ThoughtBubble } from './thought-bubble';
 import { ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, withBuiltVersion } from "./desktop-views";
-import { BUILD_COST } from "./resource";
+import { BUILD_COST, REPLY_COST } from "./resource";
 import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
 import './focused-thought.css';
 import './macos-thought.css';
@@ -72,6 +72,12 @@ const thoughts = [
     time: "12 ноя",
     group: "Раньше",
   },
+];
+const mockReplies = [
+  "Понял. Что именно помогло вам не бросить в тот день?",
+  "Хорошо, вернёмся к этому позже. А что было в самом начале пути?",
+  "Спасибо, это важная деталь. Попробуем вынести её в начало сценария.",
+  "Принято. Что бы вы сказали человеку, который сейчас на третьем дне?",
 ];
 const messages = [
   { role: "vocal", text: "Почему привычка остаётся, когда мотивация исчезла?" },
@@ -316,12 +322,26 @@ function Header({
     </header>
   );
 }
-function Dialog({ desktop = false, locked = false, versions, onBuildScript }: { desktop?: boolean; locked?: boolean; versions?: typeof initialScriptVersions; onBuildScript?: () => void }) {
+function Dialog({ desktop = false, locked = false, onSpend, versions, onBuildScript }: { desktop?: boolean; locked?: boolean; onSpend?: (tenths: number) => void; versions?: typeof initialScriptVersions; onBuildScript?: () => void }) {
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState<RecordingState>("idle");
   const [transcript, setTranscript] = useState("");
   const [seconds, setSeconds] = useState(0);
-  const [sent, setSent] = useState<string[]>([]);
+  // Messages added in this session, in order: author lines and mock Vocal replies (each costs REPLY_COST).
+  const [extra, setExtra] = useState<{ role: "author" | "vocal"; text: string }[]>([]);
+  const replyTimers = useRef<number[]>([]);
+  const replyCount = useRef(0);
+  useEffect(() => () => replyTimers.current.forEach(timer => window.clearTimeout(timer)), []);
+  const send = (text: string) => {
+    setExtra(previous => [...previous, { role: "author", text }]);
+    const timer = window.setTimeout(() => {
+      const answer = mockReplies[replyCount.current % mockReplies.length];
+      replyCount.current += 1;
+      setExtra(previous => [...previous, { role: "vocal", text: answer }]);
+      onSpend?.(REPLY_COST);
+    }, 900);
+    replyTimers.current.push(timer);
+  };
   useEffect(() => {
     const viewport = window.visualViewport;
     const updateKeyboard = () => document.documentElement.style.setProperty('--kb', `${Math.max(0, window.innerHeight - (viewport?.height ?? window.innerHeight) - (viewport?.offsetTop ?? 0))}px`);
@@ -347,8 +367,8 @@ function Dialog({ desktop = false, locked = false, versions, onBuildScript }: { 
   const thread = (
       <div className="conversation">
       <time className="conversation-time">Сегодня, 10:42</time>
-      {messages.map((message, index) => <ThoughtBubble key={index} {...message} grouped={messages[index+1]?.role===message.role || (index===messages.length-1 && sent.length>0)}/>)}
-      {sent.map((text,index)=><ThoughtBubble key={`sent-${index}`} text={text} role="author" grouped={index<sent.length-1}/>)}
+      {messages.map((message, index) => <ThoughtBubble key={index} {...message} grouped={messages[index+1]?.role===message.role || (index===messages.length-1 && extra[0]?.role===message.role)}/>)}
+      {extra.map((item,index)=><ThoughtBubble key={`extra-${index}`} text={item.text} role={item.role} grouped={extra[index+1]?.role===item.role}/>)}
     </div>
   );
   const panels = (
@@ -383,7 +403,7 @@ function Dialog({ desktop = false, locked = false, versions, onBuildScript }: { 
               className="button button-primary"
               onClick={() => {
                 if (!transcript.trim()) return;
-                setSent(previous => [...previous, transcript.trim()]);
+                send(transcript.trim());
                 setTranscript('');
                 setRecording("idle");
               }}
@@ -414,7 +434,7 @@ function Dialog({ desktop = false, locked = false, versions, onBuildScript }: { 
             onSubmit={(event) => {
               event.preventDefault();
               if (!draft.trim()) return;
-              setSent(previous => [...previous, draft.trim()]);
+              send(draft.trim());
               setDraft("");
             }}
           >
@@ -436,7 +456,7 @@ function Dialog({ desktop = false, locked = false, versions, onBuildScript }: { 
   );
   if (desktop) {
     const script = readingScript(versions);
-    const reply = (text: string) => setSent(previous => [...previous, text]);
+    const reply = (text: string) => send(text);
     return (
       <section className="dk-dialog">
         <article className="dk-script" aria-label="Сценарий для чтения">
@@ -570,7 +590,8 @@ export default function VocalApp() {
       : resParam !== null && /^\d{1,3}$/.test(resParam)
         ? Math.min(100, Number(resParam))
         : 72;
-  const resource = Math.max(0, baseResource - spent);
+  // Spending is tracked in tenths of a percent, so 0.2% replies add up exactly.
+  const resource = Math.max(0, baseResource * 10 - spent) / 10;
   const locked = resource <= 0;
   const until = paid ? "12.12" : "12.11";
   const payments: PaymentRow[] =
@@ -703,7 +724,7 @@ export default function VocalApp() {
           </button>
         </div>
       )}
-      {tab === "Диалог" && <Dialog desktop={desktop} locked={locked} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
+      {tab === "Диалог" && <Dialog desktop={desktop} locked={locked} onSpend={(tenths) => setSpent(value => value + tenths)} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
       {tab === "Сценарий" && (desktop ? <ScriptDesktop locked={locked} versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView locked={locked} />)}
       {tab === "Дубли" && <DraftsView locked={locked} onRecord={() => setTakeRecorder(true)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
