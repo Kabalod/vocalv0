@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowLeft, Check, ChevronDown, LogOut, Pencil, Settings, Sparkles, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Sparkles, X } from "lucide-react";
 import { ScriptBuildingState } from "./vocal-flows";
 import "./desktop-views.css";
 
@@ -202,101 +202,5 @@ export function ScriptDesktop({
         )}
       </article>
     </section>
-  );
-}
-
-const portrait = [
-  "Артём Лесной снимает короткие видео о привычках и о людях, которые их меняют. Начинал с заметок в телефоне: записывал фразы, которые слышал в метро, на кухнях друзей, в разговорах после работы, и однажды понял, что из них складывается его главная тема.",
-  "Он пришёл в блог из продуктовой команды, где годами объяснял сложное простыми словами. Там же понял, что люди запоминают не советы, а честные истории: как стало лень на третий день и что помогло всё равно выйти из дома.",
-  "Артёма интересуют маленькие первые шаги, а не громкие решения: надеть кроссовки, открыть документ, написать одно предложение. Он не продаёт методики и не обещает быстрых результатов, поэтому его видео звучат как разговор, а не как лекция.",
-  "Сейчас он собирает серию о том, почему привычка остаётся, когда мотивация исчезла, и ищет в каждой истории одну ясную мысль, которую можно сказать вслух за минуту.",
-];
-
-export function ProfilePage({ onBack }: { onBack: () => void }) {
-  const [addOpen, setAddOpen] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  useEffect(() => {
-    if (!addOpen && !deleteOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setAddOpen(false);
-      setDeleteOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [addOpen, deleteOpen]);
-  return (
-    <main className="dk-profile">
-      <header className="dk-profile-bar">
-        <button className="dk-back" onClick={onBack}><ArrowLeft /> Мысли</button>
-        <span>Профиль</span>
-      </header>
-      <div className="dk-profile-grid">
-        <article className="dk-portrait">
-          <div className="dk-portrait-head">
-            <div className="dk-avatar" aria-hidden="true">А</div>
-            <div>
-              <h1>Артём Лесной</h1>
-              <p>Автор · видео о привычках и людях</p>
-            </div>
-          </div>
-          <div className="dk-bio">
-            {portrait.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-          </div>
-          <footer>
-            <p>{saved ? "Ответ сохранён. Портрет обновится в ближайшее время." : "Портрет пишется как биография со стороны. Дополнения — через короткий диалог с Vocal."}</p>
-            <button className="dk-btn dk-btn-primary" onClick={() => { setSaved(false); setAddOpen(true); }}>Дополнить о себе</button>
-          </footer>
-        </article>
-        <aside className="dk-profile-side">
-          <section className="dk-quota" aria-label="Квота">
-            <strong>Осталось 100 из 100 мыслей</strong>
-            <span role="progressbar" aria-label="Использование мыслей" aria-valuemin={0} aria-valuemax={100} aria-valuenow={100}><i /></span>
-            <div>
-              <small>Период до 12.11</small>
-              <button className="dk-btn dk-btn-secondary">Продлить</button>
-            </div>
-          </section>
-          <div className="dk-rows">
-            <button><Settings /> Настройки</button>
-            <button><LogOut /> Выйти</button>
-            <button className="danger" onClick={() => setDeleteOpen(true)}><Trash2 /> Удалить аккаунт</button>
-          </div>
-        </aside>
-      </div>
-      {addOpen && (
-        <div className="dk-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setAddOpen(false); }}>
-          <section className="dk-modal" role="dialog" aria-modal="true" aria-labelledby="dk-add-title">
-            <h2 id="dk-add-title">Дополнить о себе</h2>
-            <label htmlFor="dk-answer">Что в вашей жизни за последний год изменило ваш взгляд на привычки?</label>
-            <textarea id="dk-answer" value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Расскажите своими словами" autoFocus />
-            <div>
-              <button className="dk-btn dk-btn-ghost" onClick={() => setAddOpen(false)}>Отмена</button>
-              <button
-                className="dk-btn dk-btn-primary"
-                disabled={!answer.trim()}
-                onClick={() => { setSaved(true); setAnswer(""); setAddOpen(false); }}
-              >
-                Сохранить
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
-      {deleteOpen && (
-        <div className="dk-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeleteOpen(false); }}>
-          <section className="dk-modal dk-modal-small" role="alertdialog" aria-modal="true" aria-labelledby="dk-delete-title">
-            <h2 id="dk-delete-title">Удалить аккаунт?</h2>
-            <p>Мысли, дубли и сценарии будут удалены без возможности восстановить.</p>
-            <div>
-              <button className="dk-btn dk-btn-ghost" onClick={() => setDeleteOpen(false)} autoFocus>Отмена</button>
-              <button className="dk-btn dk-btn-danger" onClick={() => setDeleteOpen(false)}>Удалить</button>
-            </div>
-          </section>
-        </div>
-      )}
-    </main>
   );
 }

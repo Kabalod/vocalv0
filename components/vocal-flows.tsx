@@ -15,6 +15,13 @@ export function useQueryFlag(name: string, value?: string) {
   return on;
 }
 
+/** Value of ?name=... (null when absent), read once on the client. */
+export function useQueryParam(name: string) {
+  const [value, setValue] = useState<string | null>(null);
+  useEffect(() => { setValue(new URLSearchParams(window.location.search).get(name)); }, [name]);
+  return value;
+}
+
 export function OfflineBanner() {
   return <div className="offline-banner" role="status"><WifiOff /><span>Нет соединения. Ответ сохранится и отправится позже</span><button>Повторить</button></div>;
 }
@@ -126,8 +133,8 @@ export function ScriptBuildingState({ onCancel }: { onCancel?: () => void }) {
   return <article className="state-card script-state" role="status" aria-live="polite"><div className="script-skeleton"><i/><i/><i/><i/></div><p>Vocal собирает сценарий…</p><button onClick={onCancel}>Отмена</button></article>;
 }
 
-export function QuotaState({ compact = false }: { compact?: boolean }) {
-  return <section className={`quota-exhausted ${compact ? "compact" : ""}`}><Lock /><div><h2>Лимит мыслей исчерпан</h2><p>Вы использовали 100 из 100 мыслей. Период до 12.11. Старые мысли остаются доступны: их можно читать, копировать и скачивать</p></div><div><button className="flow-primary">Продлить</button><button className="flow-ghost">Закрыть</button></div></section>;
+export function QuotaState({ compact = false, onRenew, onClose }: { compact?: boolean; onRenew?: () => void; onClose?: () => void }) {
+  return <section className={`quota-exhausted ${compact ? "compact" : ""}`}><Lock /><div><h2>Лимит мыслей исчерпан</h2><p>Вы использовали 100 из 100 мыслей. Период до 12.11. Старые мысли остаются доступны: их можно читать, копировать и скачивать</p></div><div><button className="flow-primary" onClick={onRenew}>Продлить</button><button className="flow-ghost" onClick={onClose}>Закрыть</button></div></section>;
 }
 
 export function StatesGallery({ onClose }: { onClose: () => void }) {

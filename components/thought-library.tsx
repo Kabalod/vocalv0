@@ -14,9 +14,6 @@ import {
   UserRound,
   X,
   ArrowUpDown,
-  Settings,
-  LogOut,
-  Trash2,
   Lock,
 } from "lucide-react";
 import "./thought-library.css";
@@ -58,8 +55,15 @@ const items = Array.from({ length: 1248 }, (_, id) => ({
 
 export default function ThoughtLibrary({
   onOpen,
+  quotaExhausted = false,
+  quotaLeft = 70,
+  onRenew,
 }: {
   onOpen: (title?: string) => void;
+  /** New thoughts are blocked (limit reached or no active subscription). */
+  quotaExhausted?: boolean;
+  quotaLeft?: number;
+  onRenew?: () => void;
 }) {
   const [layout, setLayout] = useState<Layout>("desk");
   const [query, setQuery] = useState("");
@@ -81,25 +85,22 @@ export default function ThoughtLibrary({
   const [palette, setPalette] = useState(false);
   const [command, setCommand] = useState("");
   const [selected, setSelected] = useState(0);
-  const [profile, setProfile] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const [quotaExhausted, setQuotaExhausted] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const emptyLibrary = useQueryFlag("empty");
   const offline = useQueryFlag("offline");
   const source = emptyLibrary ? [] : items;
   const dialog = useRef<HTMLDialogElement>(null);
   const dateDialog = useRef<HTMLDialogElement>(null);
   const sortSheet = useRef<HTMLElement>(null);
-  const profileSheet = useRef<HTMLElement>(null);
-  useEffect(() => { setQuotaExhausted(new URLSearchParams(window.location.search).has("quota")); }, []);
   useEffect(() => { if (dateOpen) dateDialog.current?.showModal(); else dateDialog.current?.close() }, [dateOpen]);
   useEffect(() => {
-    const panel = sortOpen ? sortSheet.current : profile ? profileSheet.current : null;
+    const panel = sortOpen ? sortSheet.current : null;
     if (!panel) return;
     const controls = Array.from(panel.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])'));
     controls[0]?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { sortOpen ? setSortOpen(false) : setProfile(false); return; }
+      if (event.key === 'Escape') { setSortOpen(false); return; }
       if (event.key !== 'Tab' || controls.length === 0) return;
       const first = controls[0], last = controls[controls.length - 1];
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
@@ -107,7 +108,7 @@ export default function ThoughtLibrary({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [sortOpen, profile]);
+  }, [sortOpen]);
   const sentinel = useRef<HTMLDivElement>(null);
   const searchButton = useRef<HTMLButtonElement>(null);
   const matches = source
@@ -184,11 +185,7 @@ export default function ThoughtLibrary({
     panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
     panel.querySelector<HTMLButtonElement>(".calendar-days button")?.focus({ preventScroll: true });
   };
-  // Desktop opens the full profile page; smaller screens keep the bottom sheet.
-  const openProfile = () => {
-    if (window.matchMedia("(min-width:1024px)").matches) onOpen("Профиль");
-    else setProfile(true);
-  };
+  const openProfile = () => onOpen("Профиль");
   const changeLayout = (value: Layout) => {
     setLayout(value);
     localStorage.setItem("vocal-library-layout", value);
@@ -296,6 +293,7 @@ export default function ThoughtLibrary({
         <section id="sidebar-calendar" ref={calendarRef} className="sidebar-calendar" aria-label="Календарь">
           {calendar(false)}
         </section>
+        <p className="library-quota-line">Осталось {quotaLeft} из 100 мыслей</p>
         <button className="library-profile" onClick={openProfile}>
           <UserRound /> Профиль
         </button>
@@ -373,7 +371,7 @@ export default function ThoughtLibrary({
         </header>
         <div className={`library-content layout-${layout}`}>
           {offline && <OfflineBanner />}
-          {quotaExhausted && <QuotaState compact />}
+          {quotaExhausted && !bannerDismissed && <QuotaState compact onRenew={onRenew} onClose={() => setBannerDismissed(true)} />}
           {activeDate && (
             <div className="active-filters" role="status">
               <span className="date-chip">
@@ -517,20 +515,6 @@ export default function ThoughtLibrary({
         {calendar(true)}
       </dialog>
       {sortOpen && <div className="sheet-backdrop" onClick={() => setSortOpen(false)}><section ref={sortSheet} className="mobile-sheet sort-sheet" role="dialog" aria-modal="true" aria-label="Сортировка" onClick={e => e.stopPropagation()}><button className="sheet-grabber" aria-label="Закрыть" onClick={() => setSortOpen(false)} /><h2>Сортировка</h2>{(['new','old'] as const).map(value => <button className={sort === value ? 'selected' : ''} key={value} onClick={() => { setSort(value); setLimit(6); setSortOpen(false) }}>{value === 'new' ? 'Новые' : 'Старые'}</button>)}</section></div>}
-      {profile && (
-        <div className="sheet-backdrop" onClick={() => setProfile(false)}>
-          <section ref={profileSheet} className="mobile-sheet library-profile-panel" role="dialog" aria-modal="true" aria-label="Профиль" onClick={e => e.stopPropagation()}>
-            <button className="sheet-grabber" aria-label="Закрыть профиль" onClick={() => setProfile(false)} />
-            <div className="profile-avatar"><UserRound /></div>
-            <h2>Демонстрационный аккаунт Vocal</h2>
-            <p>Мысли в этой библиотеке — моковые данные.</p>
-            <div className="quota-card"><strong>Осталось 100 из 100 мыслей</strong><span role="progressbar" aria-label="Использование мыслей" aria-valuemin={0} aria-valuemax={100} aria-valuenow={100}><i /></span><div className="quota-footer"><small>Период до 12.11</small><button>Продлить</button></div></div>
-            <button className="profile-row"><Settings />Настройки</button>
-            <button className="profile-row"><LogOut />Выйти</button>
-            <button className="profile-row danger"><Trash2 />Удалить аккаунт</button>
-          </section>
-        </div>
-      )}
     </div>
   );
 }

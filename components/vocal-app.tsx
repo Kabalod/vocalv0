@@ -6,6 +6,7 @@ import {
   Archive,
   ArrowLeft,
   ArrowRight,
+  ChevronLeft,
   Check,
   Copy,
   Download,
@@ -24,9 +25,10 @@ import {
 } from "lucide-react";
 
 import ThoughtLibrary from "./thought-library";
-import { NewThoughtModal, StatesGallery, TakeRecorder } from "./vocal-flows";
+import { NewThoughtModal, StatesGallery, TakeRecorder, useQueryFlag, useQueryParam } from "./vocal-flows";
 import { ThoughtBubble } from './thought-bubble';
-import { ProfilePage, ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, withBuiltVersion } from "./desktop-views";
+import { ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, withBuiltVersion } from "./desktop-views";
+import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -274,7 +276,7 @@ function Header({
   return (
     <header className="workspace-header">
       <button className="back-link" onClick={onThoughts}>
-        <ArrowLeft /> <span className="desktop-back-copy">Все мысли</span><span className="mobile-back-copy">Мысли</span>
+        <ChevronLeft /> <span className="desktop-back-copy">Все мысли</span><span className="mobile-back-copy">Мысли</span>
       </button>
       <span className={`mobile-nav-title ${showCompactTitle ? 'visible' : ''}`}>{title}</span>
       <div className="title-row">
@@ -546,6 +548,30 @@ function DraftsView({ onRecord }: { onRecord: () => void }) {
 export default function VocalApp() {
   const desktop = useIsDesktop();
   const [profilePage, setProfilePage] = useState(false);
+  // Account: subscription state is mock data; ?sub=none|expired, ?quota and ?pay=... preview the variants.
+  const subParam = useQueryParam("sub");
+  const quotaFlag = useQueryFlag("quota");
+  const payParam = useQueryParam("pay");
+  const [paid, setPaid] = useState(false);
+  const [autoRenew, setAutoRenew] = useState(true);
+  const [method, setMethod] = useState<PayMethod>("card");
+  const [payment, setPayment] = useState<null | { mode: "subscribe" | "change-method"; initial: PayStatus }>(null);
+  const sub: Sub = paid ? "active" : subParam === "none" ? "none" : subParam === "expired" ? "expired" : "active";
+  const blocked = !paid && (quotaFlag || sub !== "active");
+  const quotaLeft = paid ? 100 : blocked ? 0 : 70;
+  const until = paid ? "12.12" : "12.11";
+  const payments: PaymentRow[] =
+    sub === "none"
+      ? []
+      : [
+          ...(paid ? [{ date: "Сегодня", amount: PRICE, status: "Оплачено" as const }] : []),
+          { date: "12.10.2026", amount: PRICE, status: "Оплачено" },
+          { date: "12.09.2026", amount: PRICE, status: "Оплачено" },
+          { date: "12.08.2026", amount: PRICE, status: "Возврат" },
+        ];
+  useEffect(() => {
+    if (payParam === "processing" || payParam === "success" || payParam === "failed") setPayment({ mode: "subscribe", initial: payParam });
+  }, [payParam]);
   const [versions, setVersions] = useState(initialScriptVersions);
   const [building, setBuilding] = useState(false);
   const buildTimer = useRef<number | null>(null);
@@ -590,11 +616,40 @@ export default function VocalApp() {
   }, []);
   if (statesGallery) return <StatesGallery onClose={() => { history.replaceState(null, "", window.location.pathname); setStatesGallery(false); }} />;
   if (takeRecorder) return <TakeRecorder onClose={() => setTakeRecorder(false)} />;
-  if (profilePage) return <ProfilePage onBack={() => setProfilePage(false)} />;
+  if (payment)
+    return (
+      <PaymentScreen
+        mode={payment.mode}
+        initialStatus={payment.initial}
+        method={method}
+        onBack={() => setPayment(null)}
+        onPaid={() => { setPaid(true); setAutoRenew(true); }}
+        onMethodSaved={setMethod}
+        onToLibrary={() => { setPayment(null); setProfilePage(false); setShowThoughts(true); }}
+      />
+    );
+  if (profilePage)
+    return (
+      <ProfilePage
+        sub={sub}
+        until={until}
+        left={quotaLeft}
+        autoRenew={autoRenew}
+        method={method}
+        history={payments}
+        onBack={() => setProfilePage(false)}
+        onRenew={() => setPayment({ mode: "subscribe", initial: "select" })}
+        onChangeMethod={() => setPayment({ mode: "change-method", initial: "select" })}
+        onAutoRenew={setAutoRenew}
+      />
+    );
   if (showThoughts)
     return (
       <>
         <ThoughtLibrary
+          quotaExhausted={blocked}
+          quotaLeft={quotaLeft}
+          onRenew={() => setPayment({ mode: "subscribe", initial: "select" })}
           onOpen={(title) => {
             if (title === "Новая мысль") { setNewThought(true); return; }
             if (title === "Профиль") { setProfilePage(true); return; }
