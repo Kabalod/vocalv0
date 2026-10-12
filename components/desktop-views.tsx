@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Check, ChevronDown, Pencil, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Lock, Pencil, Sparkles, X } from "lucide-react";
 import { ScriptBuildingState } from "./vocal-flows";
 import "./desktop-views.css";
 
@@ -89,12 +89,15 @@ export function readingScript(versions: ScriptVersion[] = initialScriptVersions)
 }
 
 export function ScriptDesktop({
+  locked = false,
   versions,
   building,
   onBuild,
   onCancelBuild,
   onHelp,
 }: {
+  /** Period resource is spent: building is unavailable, reading and editing text stay. */
+  locked?: boolean;
   versions: ScriptVersion[];
   building: boolean;
   onBuild: () => void;
@@ -116,8 +119,8 @@ export function ScriptDesktop({
   return (
     <section className="dk-script-page">
       <aside className="dk-versions" aria-label="Версии сценария">
-        <button className="dk-btn dk-btn-primary dk-build" disabled={building} aria-busy={building} onClick={onBuild}>
-          <Sparkles /> Собрать новую версию
+        <button className="dk-btn dk-btn-primary dk-build" disabled={building || locked} aria-busy={building} onClick={onBuild}>
+          {locked ? <Lock /> : <Sparkles />} Собрать новую версию
         </button>
         <h2>Версии</h2>
         <ul>
@@ -154,7 +157,7 @@ export function ScriptDesktop({
             >
               <Pencil /> Редактировать
             </button>
-            <button className="dk-btn dk-btn-ghost" onClick={onHelp}><Sparkles /> Помочь со сценарием</button>
+            <button className="dk-btn dk-btn-ghost" disabled={locked} onClick={onHelp}>{locked ? <Lock /> : <Sparkles />} Помочь со сценарием</button>
             <button
               className="dk-btn dk-btn-primary"
               disabled={version.isSource || finalId === version.id || building}
@@ -164,7 +167,7 @@ export function ScriptDesktop({
             </button>
           </div>
         </header>
-        {hintOpen && !building && versions.length <= 3 && (
+        {hintOpen && !building && !locked && versions.length <= 3 && (
           <div className="dk-hint" role="note">
             <p><strong>Vocal</strong> Я понял так: привычка держится на простом первом шаге, а не на желании. Собрать новую версию?</p>
             <button className="dk-btn dk-btn-primary" onClick={onBuild}><Sparkles /> Собрать новую версию</button>

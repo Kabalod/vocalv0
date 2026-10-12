@@ -25,9 +25,10 @@ import {
 } from "lucide-react";
 
 import ThoughtLibrary from "./thought-library";
-import { NewThoughtModal, StatesGallery, TakeRecorder, useQueryFlag, useQueryParam } from "./vocal-flows";
+import { NewThoughtModal, StatesGallery, TakeRecorder, QuotaState, useQueryFlag, useQueryParam } from "./vocal-flows";
 import { ThoughtBubble } from './thought-bubble';
 import { ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, withBuiltVersion } from "./desktop-views";
+import { BUILD_COST } from "./resource";
 import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
 import './focused-thought.css';
 import './macos-thought.css';
@@ -315,7 +316,7 @@ function Header({
     </header>
   );
 }
-function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolean; versions?: typeof initialScriptVersions; onBuildScript?: () => void }) {
+function Dialog({ desktop = false, locked = false, versions, onBuildScript }: { desktop?: boolean; locked?: boolean; versions?: typeof initialScriptVersions; onBuildScript?: () => void }) {
   const [draft, setDraft] = useState("");
   const [recording, setRecording] = useState<RecordingState>("idle");
   const [transcript, setTranscript] = useState("");
@@ -342,7 +343,7 @@ function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolea
     }, 1200);
     return () => window.clearTimeout(timer);
   }, [recording, seconds]);
-  const start = () => { setSeconds(0); setTranscript(''); setRecording('recording'); };
+  const start = () => { if (locked) return; setSeconds(0); setTranscript(''); setRecording('recording'); };
   const thread = (
       <div className="conversation">
       <time className="conversation-time">Сегодня, 10:42</time>
@@ -402,6 +403,7 @@ function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolea
             <button
               className="mic-button"
               onClick={start}
+              disabled={locked}
               aria-label="Нажмите и говорите"
             ><Mic /></button>
             <span>Нажмите и говорите</span>
@@ -420,11 +422,12 @@ function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolea
             <input
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder="Или напишите ответ"
+              placeholder={locked ? "Ресурс на период закончился" : "Или напишите ответ"}
               aria-label="Или напишите ответ"
+              disabled={locked}
               onKeyDown={e=>{if(e.nativeEvent.isComposing || e.keyCode===229){if(e.key==='Enter')e.preventDefault();return} if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}
             />
-            {draft.trim() ? <button aria-label="Отправить" className="has-text"><ArrowRight /></button> : <button type="button" aria-label="Нажмите и говорите" className="has-text" onClick={start}><Mic /></button>}
+            {draft.trim() ? <button aria-label="Отправить" className="has-text"><ArrowRight /></button> : <button type="button" aria-label="Нажмите и говорите" className="has-text" disabled={locked} onClick={start}><Mic /></button>}
             <span className="composer-shortcut">⌘↵</span>
           </form>
         </div>
@@ -446,9 +449,9 @@ function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolea
           <div className="dk-chat-foot">
             {recording === "idle" && (
               <div className="dk-chips">
-                <button onClick={() => reply("Не помню")}>Не помню</button>
-                <button onClick={() => reply("Пропустить вопрос")}>Пропустить вопрос</button>
-                <button className="primary" onClick={onBuildScript}>Собрать сценарий</button>
+                <button disabled={locked} onClick={() => reply("Не помню")}>Не помню</button>
+                <button disabled={locked} onClick={() => reply("Пропустить вопрос")}>Пропустить вопрос</button>
+                <button className="primary" disabled={locked} onClick={onBuildScript}>Собрать сценарий</button>
               </div>
             )}
             {composer}
@@ -465,7 +468,7 @@ function Dialog({ desktop = false, versions, onBuildScript }: { desktop?: boolea
     </section>
   );
 }
-function ScriptView() {
+function ScriptView({ locked = false }: { locked?: boolean }) {
   return (
     <section className="script-layout">
       <div className="script-main">
@@ -483,7 +486,7 @@ function ScriptView() {
               желании. Собрать сценарий?
             </p>
           </div>
-          <button className="button button-primary">
+          <button className="button button-primary" disabled={locked}>
             <Sparkles />
             Сгенерировать сценарий
           </button>
@@ -528,18 +531,18 @@ function ScriptView() {
     </section>
   );
 }
-function DraftsView({ onRecord }: { onRecord: () => void }) {
+function DraftsView({ onRecord, locked = false }: { onRecord: () => void; locked?: boolean }) {
   const [takes,setTakes]=useState<number[]>([]), [selected,setSelected]=useState(0), [playing,setPlaying]=useState(false), [position,setPosition]=useState(0);
   useEffect(()=>{if(!playing)return;const timer=setInterval(()=>setPosition(n=>{if(n>=42){setPlaying(false);return 0}return n+1}),1000);return()=>clearInterval(timer)},[playing]);
   const add=()=>{setTakes(list=>[...list,list.length+1]);setSelected(takes.length+1);setPosition(0);setPlaying(false)};
   const wave=<svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true">{Array.from({length:60},(_,i)=><rect key={i} x={i*5} y={12-(3+(i*7%10))} width="2" height={2*(3+(i*7%10))} rx="1"/>)}</svg>;
-  if(takes.length)return <section className="takes-list">{takes.map(id=><div key={id} className={`take-item ${selected===id?'selected':''}`}><div className="take-row"><button aria-label={playing&&selected===id?'Пауза':'Воспроизвести'} onClick={()=>{setSelected(id);setPlaying(selected===id?!playing:true)}}>{playing&&selected===id?<Pause/>:<Play/>}</button><button className="take-title" onClick={()=>setSelected(id)}>Дубль №{id}</button><span>Сегодня, 10:42 · 00:42</span></div>{wave}<p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел.</p>{selected===id&&<div className="take-player">{wave}<input aria-label="Позиция воспроизведения" type="range" min="0" max="42" value={position} onChange={e=>setPosition(Number(e.target.value))}/><div><time>00:{String(position).padStart(2,'0')}</time><time>00:42</time></div></div>}</div>)}<button className="button button-primary" onClick={onRecord}><Mic/>Записать новый дубль</button></section>;
+  if(takes.length)return <section className="takes-list">{takes.map(id=><div key={id} className={`take-item ${selected===id?'selected':''}`}><div className="take-row"><button aria-label={playing&&selected===id?'Пауза':'Воспроизвести'} onClick={()=>{setSelected(id);setPlaying(selected===id?!playing:true)}}>{playing&&selected===id?<Pause/>:<Play/>}</button><button className="take-title" onClick={()=>setSelected(id)}>Дубль №{id}</button><span>Сегодня, 10:42 · 00:42</span></div>{wave}<p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел.</p>{selected===id&&<div className="take-player">{wave}<input aria-label="Позиция воспроизведения" type="range" min="0" max="42" value={position} onChange={e=>setPosition(Number(e.target.value))}/><div><time>00:{String(position).padStart(2,'0')}</time><time>00:42</time></div></div>}</div>)}<button className="button button-primary" disabled={locked} onClick={onRecord}><Mic/>Записать новый дубль</button></section>;
   return (
     <section className="drafts-view">
       <Copy />
       <h2>Дубли</h2>
       <p>Здесь появятся ваши голосовые дубли.</p>
-      <button className="button button-primary" onClick={onRecord}>
+      <button className="button button-primary" disabled={locked} onClick={onRecord}>
         <Mic /> Записать дубль
       </button>
     </section>
@@ -557,8 +560,18 @@ export default function VocalApp() {
   const [method, setMethod] = useState<PayMethod>("card");
   const [payment, setPayment] = useState<null | { mode: "subscribe" | "change-method"; initial: PayStatus }>(null);
   const sub: Sub = paid ? "active" : subParam === "none" ? "none" : subParam === "expired" ? "expired" : "active";
-  const blocked = !paid && (quotaFlag || sub !== "active");
-  const quotaLeft = paid ? 100 : blocked ? 0 : 70;
+  // Period resource in percent (mock). ?res=N sets it; ?quota and an inactive subscription mean 0.
+  const resParam = useQueryParam("res");
+  const [spent, setSpent] = useState(0);
+  const baseResource = paid
+    ? 100
+    : quotaFlag || sub !== "active"
+      ? 0
+      : resParam !== null && /^\d{1,3}$/.test(resParam)
+        ? Math.min(100, Number(resParam))
+        : 72;
+  const resource = Math.max(0, baseResource - spent);
+  const locked = resource <= 0;
   const until = paid ? "12.12" : "12.11";
   const payments: PaymentRow[] =
     sub === "none"
@@ -576,10 +589,12 @@ export default function VocalApp() {
   const [building, setBuilding] = useState(false);
   const buildTimer = useRef<number | null>(null);
   const startBuild = () => {
-    if (building) return;
+    if (building || locked) return;
     setBuilding(true);
+    // A started build always finishes; its cost is taken at the end, so "resource spent" appears only after it.
     buildTimer.current = window.setTimeout(() => {
       setVersions(previous => withBuiltVersion(previous));
+      setSpent(value => value + BUILD_COST);
       setBuilding(false);
     }, 2200);
   };
@@ -623,7 +638,7 @@ export default function VocalApp() {
         initialStatus={payment.initial}
         method={method}
         onBack={() => setPayment(null)}
-        onPaid={(agree) => { setPaid(true); setAutoRenew(agree); }}
+        onPaid={(agree) => { setPaid(true); setSpent(0); setAutoRenew(agree); }}
         onMethodSaved={setMethod}
         onToLibrary={() => { setPayment(null); setProfilePage(false); setShowThoughts(true); }}
       />
@@ -633,7 +648,7 @@ export default function VocalApp() {
       <ProfilePage
         sub={sub}
         until={until}
-        left={quotaLeft}
+        resource={resource}
         autoRenew={autoRenew}
         method={method}
         history={payments}
@@ -647,8 +662,8 @@ export default function VocalApp() {
     return (
       <>
         <ThoughtLibrary
-          quotaExhausted={blocked}
-          quotaLeft={quotaLeft}
+          locked={locked}
+          resource={resource}
           onRenew={() => setPayment({ mode: "subscribe", initial: "select" })}
           onOpen={(title) => {
             if (title === "Новая мысль") { setNewThought(true); return; }
@@ -674,10 +689,11 @@ export default function VocalApp() {
         onThoughts={() => setShowThoughts(true)}
         onOpenMenu={() => setMenu(!menu)}
       />
+      {locked && <div className="resource-lock"><QuotaState compact onRenew={() => setPayment({ mode: "subscribe", initial: "select" })} /></div>}
       {confirmDelete && <div className="confirm-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setConfirmDelete(false); }}><section className="confirm-alert" role="alertdialog" aria-modal="true" aria-labelledby="delete-title"><h2 id="delete-title">Удалить мысль?</h2><p className="delete-copy">Дубли и сценарии мысли будут удалены без возможности восстановить</p><div><button onClick={() => setConfirmDelete(false)}>Отмена</button><button className="danger" onClick={() => { setConfirmDelete(false); setShowThoughts(true) }}>Удалить</button></div></section></div>}
       {menu && (
         <div className="thought-menu">
-          <button onClick={() => { setMenu(false); setTakeRecorder(true); }}>
+          <button disabled={locked} onClick={() => { setMenu(false); setTakeRecorder(true); }}>
             <Mic />
             Записать дубль
           </button>
@@ -687,9 +703,9 @@ export default function VocalApp() {
           </button>
         </div>
       )}
-      {tab === "Диалог" && <Dialog desktop={desktop} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
-      {tab === "Сценарий" && (desktop ? <ScriptDesktop versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView />)}
-      {tab === "Дубли" && <DraftsView onRecord={() => setTakeRecorder(true)} />}
+      {tab === "Диалог" && <Dialog desktop={desktop} locked={locked} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
+      {tab === "Сценарий" && (desktop ? <ScriptDesktop locked={locked} versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView locked={locked} />)}
+      {tab === "Дубли" && <DraftsView locked={locked} onRecord={() => setTakeRecorder(true)} />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
     </ThoughtShell>
   );

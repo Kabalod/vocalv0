@@ -134,7 +134,7 @@ export function ScriptBuildingState({ onCancel }: { onCancel?: () => void }) {
 }
 
 export function QuotaState({ compact = false, onRenew, onClose }: { compact?: boolean; onRenew?: () => void; onClose?: () => void }) {
-  return <section className={`quota-exhausted ${compact ? "compact" : ""}`}><Lock /><div><h2>Лимит мыслей исчерпан</h2><p>Вы использовали 100 из 100 мыслей. Период до 12.11. Старые мысли остаются доступны: их можно читать, копировать и скачивать</p></div><div><button className="flow-primary" onClick={onRenew}>Продлить</button><button className="flow-ghost" onClick={onClose}>Закрыть</button></div></section>;
+  return <section className={`quota-exhausted ${compact ? "compact" : ""}`}><Lock /><div><h2>Ресурс на этот период закончился</h2><p>Мысли остаются доступны: их можно читать, копировать и скачивать</p></div><div><button className="flow-primary" onClick={onRenew}>Продлить</button>{onClose && <button className="flow-ghost" onClick={onClose}>Закрыть</button>}</div></section>;
 }
 
 export function StatesGallery({ onClose }: { onClose: () => void }) {
@@ -148,7 +148,7 @@ export function StatesGallery({ onClose }: { onClose: () => void }) {
     <StateCard icon={<RotateCcw/>} title="Слишком часто. Подождите минуту" text={`00:${String(count).padStart(2,"0")}`} />
     <ScriptBuildingState />
     <StateCard danger icon={<AlertTriangle/>} title="Не удалось собрать сценарий"><button>Повторить</button></StateCard>
-    <QuotaState />
+    <QuotaState onClose={() => undefined} />
     <article className="state-card empty-state"><button className="empty-mic" aria-label="Записать первую мысль"><Mic/></button><h2>Запишите первую мысль</h2><p>Расскажите голосом или напишите текст.</p></article>
     <article className="state-card empty-state"><h2>Ничего не найдено</h2><button>Сбросить фильтры</button></article>
   </section></main>;

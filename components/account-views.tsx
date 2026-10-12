@@ -13,6 +13,7 @@ import {
   Square,
   Trash2,
 } from "lucide-react";
+import { ResourceMeter } from "./resource";
 import "./account.css";
 
 export type Sub = "active" | "none" | "expired";
@@ -22,7 +23,6 @@ export type PaymentRow = { date: string; amount: string; status: "Оплачен
 
 /** Non-breaking spaces keep "1 490 ₽" on one line. */
 export const PRICE = "1\u00a0490\u00a0₽";
-const TOTAL = 100;
 
 /** Focus trap + Esc for dialogs and sheets; focus returns to the opener on close. */
 function useDialog(ref: React.RefObject<HTMLElement | null>, onClose: () => void) {
@@ -89,7 +89,7 @@ type ModalName = "add" | "cancel" | "refund" | "history" | "delete" | null;
 export function ProfilePage({
   sub,
   until,
-  left,
+  resource,
   autoRenew,
   method,
   history,
@@ -100,7 +100,8 @@ export function ProfilePage({
 }: {
   sub: Sub;
   until: string;
-  left: number;
+  /** Remaining period resource, percent. */
+  resource: number;
   autoRenew: boolean;
   method: PayMethod;
   history: PaymentRow[];
@@ -117,7 +118,7 @@ export function ProfilePage({
   const [refundSent, setRefundSent] = useState(false);
   const [added, setAdded] = useState(false);
   const close = () => { setModal(null); setDictating(false); };
-  const used = TOTAL - left;
+  const used = 100 - resource;
   const active = sub === "active";
   const status =
     sub === "active" ? `Активна до ${until}${autoRenew ? "" : " · не продлевается"}` : sub === "none" ? "Не оплачена" : "Закончилась 12.10";
@@ -170,12 +171,7 @@ export function ProfilePage({
               <h2 id="ac-sub-title">Подписка</h2>
               <span className={`ac-status ${sub}`}><i aria-hidden="true" />{status}</span>
             </div>
-            <div className="ac-quota">
-              <strong>Осталось {left} из {TOTAL} мыслей</strong>
-              <span role="progressbar" aria-label="Осталось мыслей" aria-valuemin={0} aria-valuemax={TOTAL} aria-valuenow={left}>
-                <i style={{ width: `${left}%` }} />
-              </span>
-            </div>
+            <ResourceMeter percent={resource} />
             {active && (
               <div className="ac-switch-row">
                 <div>
@@ -252,7 +248,7 @@ export function ProfilePage({
             </>
           ) : (
             <>
-              <p>Вы использовали {used} из {TOTAL} мыслей. Можно вернуть оплату за неиспользованную часть периода. Сумма будет рассчитана после проверки</p>
+              <p>Вы использовали {used}% ресурса на период. Можно вернуть оплату за неиспользованную часть периода. Сумма будет рассчитана после проверки</p>
               <label htmlFor="ac-reason" className="ac-question">Причина (необязательно)</label>
               <textarea id="ac-reason" className="ac-plain" data-autofocus value={reason} onChange={(event) => setReason(event.target.value)} />
               <div className="ac-modal-actions">
@@ -297,9 +293,9 @@ export function ProfilePage({
 }
 
 const planItems = [
-  "100 мыслей в месяц",
+  "Ресурс Vocal на 30 дней",
   "Голос и видео, расшифровка",
-  "Диалог с Vocal и сборка сценария",
+  "Диалог с Vocal и сборка сценария без ограничений внутри мысли",
   "Все мысли остаются доступны после окончания периода",
 ];
 
@@ -360,6 +356,7 @@ export function PaymentScreen({
                 <ul>
                   {planItems.map((item) => <li key={item}><Check aria-hidden="true" />{item}</li>)}
                 </ul>
+                <small>Обычно хватает на 100+ мыслей с диалогом и сценариями</small>
                 <small>Период 30 дней с даты оплаты</small>
               </section>
             )}
@@ -396,7 +393,7 @@ export function PaymentScreen({
           <div className="ac-state" role="status">
             <span className="ac-state-icon ok"><Check aria-hidden="true" /></span>
             <h1>{subscribe ? "Оплата прошла" : "Способ оплаты обновлён"}</h1>
-            <p>{subscribe ? "100 мыслей доступны до 12.12" : method === "card" ? "Карта •••• 4242" : "СБП"}</p>
+            <p>{subscribe ? "Ресурс на период: 100% · до 12.12" : method === "card" ? "Карта •••• 4242" : "СБП"}</p>
             {subscribe && !agree && <p className="ac-state-note">Автопродление выключено, включить можно в профиле</p>}
             <button className="ac-btn ac-btn-primary ac-btn-wide" data-autofocus onClick={subscribe ? onToLibrary : onBack}>{subscribe ? "К мыслям" : "В профиль"}</button>
           </div>

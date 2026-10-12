@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import "./thought-library.css";
 import { OfflineBanner, QuotaState, useQueryFlag } from "./vocal-flows";
+import { ResourceMeter, ResourceNotice, pluralThoughts, resourceLevel } from "./resource";
 import { MonthCalendar, dateFilterLabel, type DatePreset } from "./month-calendar";
 
 type Layout = "desk" | "grid" | "list";
@@ -31,13 +32,6 @@ function StatusIcon({ status }: { status: number }) {
     </svg>
   );
 }
-const pluralThoughts = (count: number) => {
-  const tail = count % 100;
-  if (tail >= 11 && tail <= 14) return "мыслей";
-  const last = count % 10;
-  if (last === 1) return "мысль";
-  return last >= 2 && last <= 4 ? "мысли" : "мыслей";
-};
 const titles = [
   "Привычка и мотивация",
   "Искренний коннект с немногими",
@@ -64,14 +58,15 @@ const items = Array.from({ length: 1248 }, (_, id) => ({
 
 export default function ThoughtLibrary({
   onOpen,
-  quotaExhausted = false,
-  quotaLeft = 70,
+  locked = false,
+  resource = 72,
   onRenew,
 }: {
   onOpen: (title?: string) => void;
-  /** New thoughts are blocked (limit reached or no active subscription). */
-  quotaExhausted?: boolean;
-  quotaLeft?: number;
+  /** The period resource is spent: new thoughts are blocked, reading still works. */
+  locked?: boolean;
+  /** Remaining period resource, percent. */
+  resource?: number;
   onRenew?: () => void;
 }) {
   const [layout, setLayout] = useState<Layout>("desk");
@@ -283,7 +278,7 @@ export default function ThoughtLibrary({
         <section id="sidebar-calendar" className="sidebar-calendar" aria-labelledby="sidebar-calendar-label">
           {calendar(false)}
         </section>
-        <p className="library-quota-line">Осталось {quotaLeft} из 100 мыслей</p>
+        <ResourceMeter percent={resource} compact />
         <button className="library-profile" onClick={openProfile}>
           <UserRound /> Профиль
         </button>
@@ -334,8 +329,8 @@ export default function ThoughtLibrary({
               </button>
             ))}
           </div>
-          <button className="library-new" disabled={quotaExhausted} onClick={() => onOpen("Новая мысль")}>
-            {quotaExhausted ? <Lock /> : <Mic />} Новая мысль
+          <button className="library-new" disabled={locked} onClick={() => onOpen("Новая мысль")}>
+            {locked ? <Lock /> : <Mic />} Новая мысль
           </button>
           <div className="library-layouts" aria-label="Раскладка">
             {(
@@ -361,7 +356,8 @@ export default function ThoughtLibrary({
         </header>
         <div className={`library-content layout-${layout}`}>
           {offline && <OfflineBanner />}
-          {quotaExhausted && !bannerDismissed && <QuotaState compact onRenew={onRenew} onClose={() => setBannerDismissed(true)} />}
+          {!bannerDismissed && resourceLevel(resource) === "out" && <QuotaState compact onRenew={onRenew} onClose={() => setBannerDismissed(true)} />}
+          {!bannerDismissed && (resourceLevel(resource) === "low" || resourceLevel(resource) === "critical") && <ResourceNotice percent={resource} onRenew={onRenew} onClose={() => setBannerDismissed(true)} />}
           {activeDate && (
             <div className="active-filters" role="status">
               <span className="date-chip">
@@ -377,7 +373,7 @@ export default function ThoughtLibrary({
           </div>
           {emptyLibrary ? (
             <article className="state-card empty-state library-first-run">
-              <button className="empty-mic" aria-label="Записать первую мысль" disabled={quotaExhausted} onClick={() => onOpen("Новая мысль")}><Mic /></button>
+              <button className="empty-mic" aria-label="Записать первую мысль" disabled={locked} onClick={() => onOpen("Новая мысль")}><Mic /></button>
               <h2>Запишите первую мысль</h2>
               <p>Расскажите голосом или напишите текст.</p>
             </article>
@@ -428,11 +424,11 @@ export default function ThoughtLibrary({
         </button>
           <button
             className="library-new-mic"
-            aria-label={quotaExhausted ? "Лимит мыслей исчерпан" : "Новая мысль"}
-            disabled={quotaExhausted}
+            aria-label={locked ? "Ресурс на период закончился" : "Новая мысль"}
+            disabled={locked}
             onClick={() => onOpen("Новая мысль")}
           >
-            {quotaExhausted ? <Lock /> : <Mic />}
+            {locked ? <Lock /> : <Mic />}
           </button>
         <button onClick={openProfile}>
           <UserRound />

@@ -52,6 +52,3 @@
 
 /* The sidebar now holds the calendar: let it scroll on short windows instead of clipping. */
 @media (min-width:641px){.library-sidebar{overflow-y:auto;scrollbar-width:none}.library-sidebar::-webkit-scrollbar{display:none}}
-
-/* Remaining quota above the profile button in the library sidebar (desktop). */
-.library-quota-line{margin:14px 4px 8px;color:#929098;font-size:12px;line-height:1.4}

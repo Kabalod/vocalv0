@@ -48,10 +48,6 @@
 .ac-status i{width:8px;height:8px;border-radius:50%;background:#8d8994}
 .ac-status.active i{background:#4cc38a}
 .ac-status.expired i{background:#ff6961}
-.ac-quota{display:flex;flex-direction:column;gap:10px}
-.ac-quota strong{font:600 14px/1.3 var(--font-inter),system-ui,sans-serif}
-.ac-quota>span{display:block;height:4px;border-radius:2px;background:#ffffff14;overflow:hidden}
-.ac-quota i{display:block;height:100%;background:#8b6cf8;transition:width 250ms ease-out}
 .ac-switch-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:14px;border-top:.5px solid #ffffff14}
 .ac-switch-row strong{display:block;font:500 14px/1.3 var(--font-inter),system-ui,sans-serif}
 .ac-switch-row small{display:block;margin-top:3px;color:#929098;font-size:12.5px;line-height:1.4}
@@ -168,4 +164,4 @@
   .ac-grid{padding-top:16px}
   .ac-bio{font-size:17px}
 }
-@media (prefers-reduced-motion:reduce){.ac-btn,.ac-switch,.ac-switch i,.ac-quota i{transition:none}}
+@media (prefers-reduced-motion:reduce){.ac-btn,.ac-switch,.ac-switch i{transition:none}}
