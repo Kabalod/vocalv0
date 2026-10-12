@@ -623,7 +623,7 @@ export default function VocalApp() {
         initialStatus={payment.initial}
         method={method}
         onBack={() => setPayment(null)}
-        onPaid={() => { setPaid(true); setAutoRenew(true); }}
+        onPaid={(agree) => { setPaid(true); setAutoRenew(agree); }}
         onMethodSaved={setMethod}
         onToLibrary={() => { setPayment(null); setProfilePage(false); setShowThoughts(true); }}
       />

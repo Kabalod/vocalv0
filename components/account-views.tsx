@@ -316,7 +316,7 @@ export function PaymentScreen({
   initialStatus: PayStatus;
   method: PayMethod;
   onBack: () => void;
-  onPaid: () => void;
+  onPaid: (autoRenew: boolean) => void;
   onMethodSaved: (method: PayMethod) => void;
   onToLibrary: () => void;
 }) {
@@ -337,9 +337,9 @@ export function PaymentScreen({
   useEffect(() => {
     if (status !== "success" || done.current) return;
     done.current = true;
-    if (subscribe) onPaid();
+    if (subscribe) onPaid(agree);
     else onMethodSaved(method);
-  }, [status, subscribe, method, onPaid, onMethodSaved]);
+  }, [status, subscribe, method, agree, onPaid, onMethodSaved]);
   const pay = () => { setAuto(true); done.current = false; setStatus("processing"); };
   return (
     <main ref={panel} className="ac-page ac-pay" role="dialog" aria-modal="true" aria-label={subscribe ? "Подписка Vocal" : "Способ оплаты"}>
@@ -397,6 +397,7 @@ export function PaymentScreen({
             <span className="ac-state-icon ok"><Check aria-hidden="true" /></span>
             <h1>{subscribe ? "Оплата прошла" : "Способ оплаты обновлён"}</h1>
             <p>{subscribe ? "100 мыслей доступны до 12.12" : method === "card" ? "Карта •••• 4242" : "СБП"}</p>
+            {subscribe && !agree && <p className="ac-state-note">Автопродление выключено, включить можно в профиле</p>}
             <button className="ac-btn ac-btn-primary ac-btn-wide" data-autofocus onClick={subscribe ? onToLibrary : onBack}>{subscribe ? "К мыслям" : "В профиль"}</button>
           </div>
         )}

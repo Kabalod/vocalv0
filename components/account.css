@@ -126,6 +126,7 @@
 .ac-state-icon svg{width:30px;height:30px}
 .ac-state-icon.ok{background:#4cc38a22;color:#4cc38a}
 .ac-state-icon.bad{background:#ff696122;color:#ff6961}
+.ac-state .ac-state-note{color:#929098;font-size:13px}
 .ac-state .ac-btn-wide{margin-top:12px}
 .ac-state-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:12px}
 
