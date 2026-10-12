@@ -4,8 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
-  CheckCircle2,
-  Circle,
   Columns3,
   LayoutGrid,
   List,
@@ -22,6 +20,17 @@ import { MonthCalendar, dateFilterLabel, type DatePreset } from "./month-calenda
 
 type Layout = "desk" | "grid" | "list";
 const statuses = ["Не завершена", "В работе", "Завершена"];
+
+/** Status marks from canon 09: empty circle, left-half filled, circle with a check. */
+function StatusIcon({ status }: { status: number }) {
+  return (
+    <svg className={`status-icon status-icon-${status}`} viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
+      {status === 1 && <path d="M8 1.75a6.25 6.25 0 0 0 0 12.5z" fill="currentColor" />}
+      {status === 2 && <path d="m5.3 8.2 1.9 1.9 3.6-3.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />}
+    </svg>
+  );
+}
 const pluralThoughts = (count: number) => {
   const tail = count % 100;
   if (tail >= 11 && tail <= 14) return "мыслей";
@@ -75,7 +84,6 @@ export default function ThoughtLibrary({
   const [rangeEnd, setRangeEnd] = useState("");
   const [monthValue, setMonthValue] = useState("");
   const [view, setView] = useState({ year: 2026, month: 9 });
-  const calendarRef = useRef<HTMLElement>(null);
   const dateOf = (id: number) => {
     const date = new Date("2026-10-09T12:00:00Z");
     date.setUTCDate(date.getUTCDate() - (Math.floor(id / 3) + Math.floor(id / 9)));
@@ -179,12 +187,6 @@ export default function ThoughtLibrary({
     />
   );
   const activeDate = dateFilterLabel(dateFilter, rangeStart, monthValue);
-  const focusCalendar = () => {
-    const panel = calendarRef.current;
-    if (!panel) return;
-    panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    panel.querySelector<HTMLButtonElement>(".calendar-days button")?.focus({ preventScroll: true });
-  };
   const openProfile = () => onOpen("Профиль");
   const changeLayout = (value: Layout) => {
     setLayout(value);
@@ -258,13 +260,7 @@ export default function ThoughtLibrary({
           }}
         >
           <span>
-            {index === 0 ? (
-              <LayoutGrid />
-            ) : index === 3 ? (
-              <CheckCircle2 />
-            ) : (
-              <Circle />
-            )}
+            {index === 0 ? <LayoutGrid /> : <StatusIcon status={index - 1} />}
             {name === "Завершена" ? "Завершена" : name}
           </span>
           {index === 0 && <small>{source.length.toLocaleString("ru-RU")}</small>}
@@ -278,19 +274,13 @@ export default function ThoughtLibrary({
         <a className="library-logo" href="#">
           Vocal<span>ваши мысли, вашим голосом</span>
         </a>
-        <button
-          className="library-date"
-          onClick={focusCalendar}
-          aria-controls="sidebar-calendar"
-        >
-          <CalendarDays /> Дата
-        </button>
         <div className="library-nav">
           <LayoutGrid /> Мысли
         </div>
         <p className="filter-label">СТАТУС</p>
         <div className="library-filters">{filters}</div>
-        <section id="sidebar-calendar" ref={calendarRef} className="sidebar-calendar" aria-label="Календарь">
+        <p className="filter-label" id="sidebar-calendar-label">ДАТА</p>
+        <section id="sidebar-calendar" className="sidebar-calendar" aria-labelledby="sidebar-calendar-label">
           {calendar(false)}
         </section>
         <p className="library-quota-line">Осталось {quotaLeft} из 100 мыслей</p>
