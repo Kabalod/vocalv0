@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Video, MessageCircle, Pencil, ChevronsUpDown, Play, Pause, X,
+  Video, MessageCircle, Pencil, ChevronsUpDown, X,
   Archive,
   ArrowLeft,
   ArrowRight,
@@ -29,6 +29,7 @@ import { NewThoughtModal, StatesGallery, TakeRecorder, QuotaState, useQueryFlag,
 import { ThoughtBubble } from './thought-bubble';
 import { ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, withBuiltVersion } from "./desktop-views";
 import { BUILD_COST, REPLY_COST } from "./resource";
+import { MOCK_TAKES, TakesPath } from "./takes-path";
 import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
 import './focused-thought.css';
 import './macos-thought.css';
@@ -552,21 +553,20 @@ function ScriptView({ locked = false }: { locked?: boolean }) {
   );
 }
 function DraftsView({ onRecord, locked = false }: { onRecord: () => void; locked?: boolean }) {
-  const [takes,setTakes]=useState<number[]>([]), [selected,setSelected]=useState(0), [playing,setPlaying]=useState(false), [position,setPosition]=useState(0);
-  useEffect(()=>{if(!playing)return;const timer=setInterval(()=>setPosition(n=>{if(n>=42){setPlaying(false);return 0}return n+1}),1000);return()=>clearInterval(timer)},[playing]);
-  const add=()=>{setTakes(list=>[...list,list.length+1]);setSelected(takes.length+1);setPosition(0);setPlaying(false)};
-  const wave=<svg viewBox="0 0 300 24" preserveAspectRatio="none" aria-hidden="true">{Array.from({length:60},(_,i)=><rect key={i} x={i*5} y={12-(3+(i*7%10))} width="2" height={2*(3+(i*7%10))} rx="1"/>)}</svg>;
-  if(takes.length)return <section className="takes-list">{takes.map(id=><div key={id} className={`take-item ${selected===id?'selected':''}`}><div className="take-row"><button aria-label={playing&&selected===id?'Пауза':'Воспроизвести'} onClick={()=>{setSelected(id);setPlaying(selected===id?!playing:true)}}>{playing&&selected===id?<Pause/>:<Play/>}</button><button className="take-title" onClick={()=>setSelected(id)}>Дубль №{id}</button><span>Сегодня, 10:42 · 00:42</span></div>{wave}<p>Три недели назад я начал бегать по утрам. На третий день мне стало лень, но я всё равно вышел.</p>{selected===id&&<div className="take-player">{wave}<input aria-label="Позиция воспроизведения" type="range" min="0" max="42" value={position} onChange={e=>setPosition(Number(e.target.value))}/><div><time>00:{String(position).padStart(2,'0')}</time><time>00:42</time></div></div>}</div>)}<button className="button button-primary" disabled={locked} onClick={onRecord}><Mic/>Записать новый дубль</button></section>;
-  return (
-    <section className="drafts-view">
-      <Copy />
-      <h2>Дубли</h2>
-      <p>Здесь появятся ваши голосовые дубли.</p>
-      <button className="button button-primary" disabled={locked} onClick={onRecord}>
-        <Mic /> Записать дубль
-      </button>
-    </section>
-  );
+  // Mock data: four takes of one thought. ?takes=0 previews the empty state.
+  const takesParam = useQueryParam("takes");
+  if (takesParam === "0")
+    return (
+      <section className="drafts-view">
+        <Copy />
+        <h2>Дубли</h2>
+        <p>Здесь появятся ваши голосовые дубли.</p>
+        <button className="button button-primary" disabled={locked} onClick={onRecord}>
+          <Mic /> Записать первый дубль
+        </button>
+      </section>
+    );
+  return <TakesPath takes={MOCK_TAKES} locked={locked} onRecord={onRecord} />;
 }
 export default function VocalApp() {
   const desktop = useIsDesktop();
