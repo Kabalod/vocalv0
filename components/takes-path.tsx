@@ -269,22 +269,22 @@ function OrderSwitch({ order, onChange }: { order: Order; onChange: (order: Orde
 
 const PW = 236; // polaroid width, px
 const PH = 288; // polaroid height: 12px frame, 212px square, 64px thick bottom
-const SLOT_X = [0.2, 0.76, 0.27, 0.7];
-const SLOT_Y = [70, 340, 640, 930];
-const SLOT_ROT = [-1.8, 1.5, 1.1, -1.4];
-const TIP_ROT = [-4, 3, -2.5, 4.5];
+const SLOT_X = [0.2, 0.76, 0.27, 0.7, 0.23, 0.74];
+const SLOT_Y = [70, 340, 640, 930, 1230, 1510];
+const SLOT_ROT = [-1.8, 1.5, 1.1, -1.4, 1.7, -1.2];
+const TIP_ROT = [-4, 3, -2.5, 4.5, -3, 3.5];
 
 function slot(index: number, width: number) {
   const side = index % 2 === 0 ? "left" : "right";
   const lap = Math.floor(index / SLOT_X.length);
-  const base = SLOT_Y[index % SLOT_Y.length] + lap * 1210;
+  const base = SLOT_Y[index % SLOT_Y.length] + lap * 1800;
   const half = PW / 2 + 12;
   const cx = Math.min(width - half, Math.max(half, SLOT_X[index % SLOT_X.length] * width));
   return { side, cx, top: base, rot: SLOT_ROT[index % SLOT_ROT.length] };
 }
 
-function PathDesktop({ ordered, finalId, setFinal, player, toggle, stop, onRead, onVideo }: {
-  ordered: Take[]; finalId: number; setFinal: (id: number) => void; player: Player | null;
+function PathDesktop({ ordered, order, locked, onRecord, finalId, setFinal, player, toggle, stop, onRead, onVideo }: {
+  ordered: Take[]; order: Order; locked: boolean; onRecord: () => void; finalId: number; setFinal: (id: number) => void; player: Player | null;
   toggle: (id: number) => void; stop: () => void; onRead: (take: Take) => void; onVideo: (take: Take) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -298,19 +298,22 @@ function PathDesktop({ ordered, finalId, setFinal, player, toggle, stop, onRead,
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  const slots = ordered.map((_, index) => slot(index, width));
+  // The ghost "next take" stands right before the newest take: first when newest-first, last when oldest-first.
+  const nodes: (Take | null)[] = order === "newest" ? [null, ...ordered] : [...ordered, null];
+  const slots = nodes.map((_, index) => slot(index, width));
   const last = slots[slots.length - 1];
   const height = last ? last.top + PH + 80 : 0;
-  // Tips of the older take of each neighbouring pair sit on the curve between the two takes.
-  const segments = ordered.slice(0, -1).map((take, index) => {
+  // Tips of the older take of each neighbouring pair sit on the curve between the two (the ghost counts as the newest).
+  const segments = nodes.slice(0, -1).map((take, index) => {
     const from = slots[index], to = slots[index + 1];
     const ay = from.top + 12 + 106, by = to.top + 12 + 106;
     const ax = from.side === "left" ? from.cx + PW / 2 + 8 : from.cx - PW / 2 - 8;
     const bx = to.side === "left" ? to.cx + PW / 2 + 8 : to.cx - PW / 2 - 8;
     const reach = (bx - ax) * 0.56;
-    const older = take.id < ordered[index + 1].id ? take : ordered[index + 1];
+    const next = nodes[index + 1];
+    const older = (take && next ? (take.id < next.id ? take : next) : take ?? next)!;
     return {
-      key: `${take.id}-${ordered[index + 1].id}`,
+      key: `${take?.id ?? "next"}-${next?.id ?? "next"}`,
       d: `M ${ax} ${ay} C ${ax + reach} ${ay}, ${bx - reach} ${by}, ${bx} ${by}`,
       mx: (ax + bx) / 2, my: (ay + by) / 2, tips: older.tips, rot: TIP_ROT[index % TIP_ROT.length],
     };
@@ -328,8 +331,22 @@ function PathDesktop({ ordered, finalId, setFinal, player, toggle, stop, onRead,
               <ul>{segment.tips.map((tip) => <li key={tip}>{tip}</li>)}</ul>
             </aside>
           ))}
-          {ordered.map((take, index) => {
+          {nodes.map((take, index) => {
             const place = slots[index];
+            if (!take)
+              return (
+                <div
+                  key="ghost"
+                  className="tp-item"
+                  style={{ transform: `translate(${place.cx - PW / 2}px, ${place.top}px)`, "--rot": `${place.rot}deg` } as CSSProperties}
+                >
+                  <button className="tp-ghost" disabled={locked} onClick={onRecord} aria-label="Следующий дубль: записать">
+                    <span className="tp-ghost-mic"><Mic /></span>
+                    <strong>Следующий дубль</strong>
+                    <small>Записать</small>
+                  </button>
+                </div>
+              );
             const isFinal = take.id === finalId;
             const active = player?.id === take.id;
             return (
@@ -438,7 +455,7 @@ export function TakesPath({ takes, locked = false, onRecord }: { takes: Take[]; 
       </header>
       {desktop ? (
         <PathDesktop
-          ordered={ordered} finalId={finalId} setFinal={setFinalId} player={player} toggle={toggle} stop={stop}
+          ordered={ordered} order={order} locked={locked} onRecord={onRecord} finalId={finalId} setFinal={setFinalId} player={player} toggle={toggle} stop={stop}
           onRead={setReading} onVideo={setWatching}
         />
       ) : (

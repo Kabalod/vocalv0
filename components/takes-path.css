@@ -103,6 +103,15 @@
 .tp-tip li{font-size:12.5px;font-weight:500;line-height:1.35}
 .tp-tip li+li{margin-top:5px}
 
+/* ghost "next take" polaroid at the start of the path */
+.tp-ghost{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;width:236px;height:288px;padding:0 16px;border:2px dashed #a28bfb73;border-radius:4px;background:#a28bfb0d;color:#d7cffc;cursor:pointer;transform:rotate(var(--rot,0deg));transition:transform .7s cubic-bezier(.22,.8,.24,1),background 150ms ease-out,border-color 150ms ease-out}
+.tp-ghost:hover:not(:disabled){border-color:#a28bfbcc;background:#a28bfb1a}
+.tp-ghost:disabled{opacity:.5;cursor:not-allowed}
+.tp-ghost-mic{display:grid;place-items:center;width:60px;height:60px;margin-bottom:6px;border-radius:50%;background:linear-gradient(180deg,#8b6cf8,#7154d9);color:#fff;box-shadow:0 6px 16px #5b3fd855}
+.tp-ghost-mic svg{width:26px;height:26px;stroke-width:1.75}
+.tp-ghost strong{font:500 19px/1.2 var(--font-serif),Georgia,serif;color:#f4f2f7}
+.tp-ghost small{font-size:12px;color:#a99cf0}
+
 /* ---- mobile / tablet: focus card + timeline ---- */
 .is-mobile .tp-title h2{font-size:21px}
 .is-mobile .tp-title p{margin-top:2px;font-size:12px}
@@ -169,4 +178,5 @@
 @media(prefers-reduced-motion:reduce){
   .tp-item,.tp-polaroid,.tp-actions,.tp-progress i,.tp-more,.tp-order button,.tp-new,.tp-timeline button{transition:none}
   .tp-curves path,.tp-tip,.tp-modal{animation:none}
+  .tp-ghost{transition:none}
 }
