@@ -272,6 +272,9 @@ export default function ThoughtLibrary({
         <div className="library-nav">
           <LayoutGrid /> Мысли
         </div>
+        <button className="library-nav" onClick={() => onOpen("Календарь")}>
+          <CalendarDays /> Календарь
+        </button>
         <p className="filter-label">СТАТУС</p>
         <div className="library-filters">{filters}</div>
         <p className="filter-label" id="sidebar-calendar-label">ДАТА</p>
@@ -421,9 +424,13 @@ export default function ThoughtLibrary({
         <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
           <LayoutGrid />
           Мысли
-        </button>
-          <button
-            className="library-new-mic"
+  </button>
+  <button onClick={() => onOpen("Календарь")}>
+  <CalendarDays />
+  Календарь
+  </button>
+  <button
+  className="library-new-mic"
             aria-label={locked ? "Ресурс на период закончился" : "Новая мысль"}
             disabled={locked}
             onClick={() => onOpen("Новая мысль")}

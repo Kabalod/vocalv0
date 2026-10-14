@@ -11,12 +11,15 @@ const themeStyles: Record<CarouselTheme, { background: string; text: string; mut
 
 export function CarouselSlide({ slide, theme, index, total, handle, onEdit }: { slide: CarouselSlideData; theme: CarouselTheme; index: number; total: number; handle: string; onEdit?: (field: "kicker" | "title" | "body") => void }) {
   const colors = themeStyles[theme];
-  const textButton = (field: "kicker" | "title" | "body", style: CSSProperties): CSSProperties => ({ display: "flex", width: "100%", minWidth: 0, padding: 0, border: 0, background: "transparent", color: "inherit", textAlign: "left", cursor: onEdit ? "pointer" : "default", ...style });
+  const textStyle = (style: CSSProperties): CSSProperties => ({ display: "flex", width: "100%", minWidth: 0, padding: 0, border: 0, background: "transparent", color: "inherit", textAlign: "left", cursor: onEdit ? "pointer" : "default", ...style });
+  const textElement = (field: "kicker" | "title" | "body", value: string, style: CSSProperties) => onEdit
+    ? <button type="button" onClick={() => onEdit(field)} style={textStyle(style)}>{value}</button>
+    : <span style={textStyle(style)}>{value}</span>;
   return <div style={{ position: "relative", display: "flex", width: "100%", height: "100%", containerType: "inline-size", flexDirection: "column", justifyContent: slide.layout === 6 ? "flex-end" : "center", gap: "2.2cqw", padding: "7.4cqw", overflow: "hidden", background: colors.background, color: colors.text, fontFamily: "Inter, -apple-system, BlinkMacSystemFont, sans-serif" }}>
     <span style={{ position: "absolute", display: "flex", top: "4.4cqw", right: "5.2cqw", color: colors.muted, fontSize: "2.2cqw", lineHeight: 1 }}>{index + 1}/{total}</span>
-    <button type="button" onClick={() => onEdit?.("kicker")} style={textButton("kicker", { color: colors.accent, fontSize: "2.963cqw", fontWeight: 700, lineHeight: 1.15, letterSpacing: ".08em", textTransform: "uppercase" })}>{slide.kicker}</button>
-    <button type="button" onClick={() => onEdit?.("title")} style={textButton("title", { fontFamily: theme === "graphite" ? "Literata, Georgia, serif" : "Inter, -apple-system, BlinkMacSystemFont, sans-serif", fontSize: slide.title.length > 48 ? "5.2cqw" : "6.3cqw", fontWeight: 700, lineHeight: 1.07, letterSpacing: "-.03em" })}>{slide.title}</button>
-    <button type="button" onClick={() => onEdit?.("body")} style={textButton("body", { maxWidth: "82%", color: colors.muted, fontSize: "3.05cqw", fontWeight: 500, lineHeight: 1.4 })}>{slide.body}</button>
+    {textElement("kicker", slide.kicker, { color: colors.accent, fontSize: "2.963cqw", fontWeight: 700, lineHeight: 1.15, letterSpacing: ".08em", textTransform: "uppercase" })}
+    {textElement("title", slide.title, { fontFamily: theme === "graphite" ? "Literata, Georgia, serif" : "Inter, -apple-system, BlinkMacSystemFont, sans-serif", fontSize: slide.title.length > 48 ? "5.2cqw" : "6.3cqw", fontWeight: 700, lineHeight: 1.07, letterSpacing: "-.03em" })}
+    {textElement("body", slide.body, { maxWidth: "82%", color: colors.muted, fontSize: "3.05cqw", fontWeight: 500, lineHeight: 1.4 })}
     <small style={{ position: "absolute", display: "flex", left: "7.4cqw", bottom: "5.2cqw", color: colors.muted, fontSize: "2.25cqw", lineHeight: 1 }}>{handle}</small>
   </div>;
 }
