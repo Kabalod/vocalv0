@@ -1,42 +1,44 @@
 "use client";
 
-import { useState } from "react";
-import { CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Clapperboard, GalleryHorizontal, GripVertical, LayoutGrid, MoreHorizontal, Plus, Trash2, UserRound, X } from "lucide-react";
-import "./content-calendar.css";
+import { useMemo, useState } from "react";
+import { CalendarDays, Camera, ChevronLeft, ChevronRight, Clapperboard, GalleryHorizontal, LayoutGrid, Plus, Search, Settings2, UserRound } from "lucide-react";
 import EventsDiary from "./events-diary";
+import "./content-calendar.css";
 
-type View = "week" | "month";
-type Demo = "empty" | "week" | "missed" | "month";
 type Layer = "План" | "События" | "Всё";
-type Item = { title:string; format:"рилс"|"карусель"; status:"идея"|"в работе"|"снято"|"готово"|"опубликовано"; time?:string };
-const days=[{d:"ПН",n:13},{d:"ВТ",n:14},{d:"СР",n:15},{d:"ЧТ",n:16},{d:"ПТ",n:17},{d:"СБ",n:18},{d:"ВС",n:19}];
-const backlog:Item[]=[{title:"Три ошибки новичка в зале",format:"рилс",status:"идея"},{title:"Утро без телефона",format:"карусель",status:"идея"}];
-const planned:Record<number,Item[]>={1:[{title:"Почему я ушёл из найма",format:"карусель",status:"в работе",time:"11:30"}],4:[{title:"Привычка и мотивация",format:"рилс",status:"готово",time:"18:00"}]};
-const monthDays=Array.from({length:42},(_,i)=>i<3?null:i-2>31?null:i-2);
-const statusLabel=(item:Item)=><span className={`cc-status status-${item.status.replace(" ","-")}`}>{item.status==="опубликовано"&&<Check/>}{item.status}</span>;
-
+type View = "week" | "month";
+type Item = { title:string; format:"рилс"|"карусель"; status:"в работе"|"готово"; time:string; date:string };
+const publications:Item[]=[
+ {title:"Почему я ушёл из найма",format:"карусель",status:"в работе",time:"11:30",date:"2026-10-14"},
+ {title:"Привычка и мотивация",format:"рилс",status:"готово",time:"18:00",date:"2026-10-16"},
+];
+const undated=["Утро без телефона","Три ошибки новичка в зале"];
+const eventImages:Record<string,string[]>={"2026-10-06":["/events/evening.png"],"2026-10-09":["/events/gym-road.png"],"2026-10-14":["/events/coffee.png","/events/gym-road.png","/events/evening.png"]};
+const start=new Date(2026,9,12);
+const week=Array.from({length:7},(_,i)=>{const date=new Date(start);date.setDate(start.getDate()+i);return date});
+const month=Array.from({length:35},(_,i)=>{const n=i-2;return n>=1&&n<=31?new Date(2026,9,n):null});
+const weekDay=(date:Date,long=false)=>new Intl.DateTimeFormat("ru-RU",{weekday:long?"long":"short"}).format(date).replace(".","");
+const iso=(date:Date)=>`2026-10-${String(date.getDate()).padStart(2,"0")}`;
 function Format({format}:{format:Item["format"]}){return format==="рилс"?<Clapperboard/>:<GalleryHorizontal/>}
-function Publication({item,onClick}:{item:Item;onClick:()=>void}){return <button className="cc-publication" onClick={onClick}>{item.time&&<time>{item.time}</time>}<strong>{item.title}</strong><span><Format format={item.format}/>{item.format}{statusLabel(item)}</span></button>}
+function Publication({item}:{item:Item}){return <button className="cc-publication"><time>{item.time}</time><strong>{item.title}</strong><span><Format format={item.format}/>{item.format}<i className={`dot ${item.status.replace(" ","-")}`}/>{item.status}</span></button>}
 
 export default function ContentCalendar({onThoughts,onProfile,onNew}:{onThoughts:()=>void;onProfile:()=>void;onNew:()=>void}){
- const [view,setView]=useState<View>("week"); const [demo,setDemo]=useState<Demo>("week"); const [layer,setLayer]=useState<Layer>("События"); const [rhythm,setRhythm]=useState(3); const [selected,setSelected]=useState<Item|null>(null); const [backlogOpen,setBacklogOpen]=useState(false); const [placing,setPlacing]=useState<Item|null>(null);
- const effectiveView=demo==="month"?"month":view; const empty=demo==="empty";
- const setDemoState=(value:Demo)=>{setDemo(value);if(value==="month")setView("month")};
+ const [layer,setLayer]=useState<Layer>("План");
+ const [view,setView]=useState<View>("week");
+ const [demoOpen,setDemoOpen]=useState(false);
  if(layer==="События") return <EventsDiary onThoughts={onThoughts} onProfile={onProfile} onNew={onNew} onLayer={setLayer}/>;
  return <div className="content-calendar">
-  <header className="cc-global"><a>Vocal</a><nav><button onClick={onThoughts}>Мысли</button><button className="active">Календарь</button><button onClick={onProfile}>Профиль</button></nav><button className="cc-avatar" onClick={onProfile}><UserRound/></button></header>
+  <header className="cc-global"><b>Vocal</b><nav><button onClick={onThoughts}>Мысли</button><button className="active">Календарь</button><button onClick={onProfile}>Профиль</button></nav></header>
   <main className="cc-main">
-   <header className="cc-heading"><div><span>Контент-план</span><h1>Октябрь <i>2026</i></h1></div><button className="cc-backlog-mobile" onClick={()=>setBacklogOpen(true)}>Без даты <b>2</b></button><div className="cc-controls"><div className="cc-view-switch"><button className={effectiveView==="week"?"active":""} onClick={()=>{setView("week");setDemo("week")}}>Неделя</button><button className={effectiveView==="month"?"active":""} onClick={()=>{setView("month");setDemo("month")}}>Месяц</button></div><button aria-label="Предыдущий период"><ChevronLeft/></button><button aria-label="Следующий период"><ChevronRight/></button><button className="cc-today">Сегодня</button></div></header>
-   <div className="cc-subbar"><div className="cc-layers">{(["План","События","Всё"] as Layer[]).map(v=><button className={layer===v?"active":""} onClick={()=>setLayer(v)} key={v}>{v}</button>)}</div><label>Ритм <select value={rhythm} onChange={e=>setRhythm(Number(e.target.value))}>{[1,2,3,4,5,6,7].map(n=><option value={n} key={n}>{n} в неделю</option>)}</select></label></div>
-   {empty?<section className="cc-empty"><CalendarDays/><h2>Поставьте первую мысль на день</h2><p>Ритм поможет не пропадать</p><button onClick={()=>setBacklogOpen(true)}>Выбрать мысль</button></section>:effectiveView==="month"?<Month onSelect={setSelected}/>:<div className="cc-week-layout"><Backlog onDrag={(item)=>setPlacing(item)} onSelect={setSelected}/><Week demo={demo} rhythm={rhythm} onSelect={setSelected} placing={placing} onPlaced={()=>setPlacing(null)}/></div>}
+   <header className="cc-sticky"><div className="cc-title-row"><h1>Календарь</h1><div><button aria-label="Поиск"><Search/></button><button className="cc-undated">Без даты <b>2</b></button></div></div>
+    <div className="cc-layers">{(["План","События","Всё"] as Layer[]).map(item=><button className={layer===item?"active":""} onClick={()=>setLayer(item)} key={item}>{item}</button>)}</div>
+    <div className="cc-period"><div><button aria-label="Предыдущий период"><ChevronLeft/></button><h2>{view==="week"?"12–18 октября":"Октябрь 2026"}</h2><button aria-label="Следующий период"><ChevronRight/></button></div><div className="cc-view"><button className={view==="week"?"active":""} onClick={()=>setView("week")}>Неделя</button><button className={view==="month"?"active":""} onClick={()=>setView("month")}>Месяц</button></div></div>
+   </header>
+   {view==="week"?<Week layer={layer}/>:<Month layer={layer}/>} 
   </main>
-  <div className="cc-demo"><label htmlFor="cc-demo">Демо</label><select id="cc-demo" value={demo} onChange={e=>setDemoState(e.target.value as Demo)}><option value="empty">Пустой план</option><option value="week">Обычная неделя</option><option value="missed">Пропущенный слот</option><option value="month">Месяц</option></select></div>
+  <div className="cc-demo"><button aria-label="Демо" title="Демо" onClick={()=>setDemoOpen(v=>!v)}><Settings2/></button>{demoOpen&&<div><b>Демо</b><span>Октябрь 2026</span></div>}</div>
   <nav className="cc-mobile-nav"><button onClick={onThoughts}><LayoutGrid/>Мысли</button><button className="active"><CalendarDays/>Календарь</button><button className="new" onClick={onNew}><Plus/></button><button onClick={onProfile}><UserRound/>Профиль</button></nav>
-  {selected&&<div className="cc-popover-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null)}}><section className="cc-popover"><button className="close" onClick={()=>setSelected(null)}><X/></button><h2>{selected.title}</h2><dl><div><dt>Формат</dt><dd><Format format={selected.format}/>{selected.format}</dd></div><div><dt>Время</dt><dd>{selected.time||"Не выбрано"}</dd></div><div><dt>Статус</dt><dd>{statusLabel(selected)}</dd></div></dl><button className="primary">Открыть мысль</button><button className="remove"><Trash2/>Убрать из плана</button></section></div>}
-  {backlogOpen&&<div className="cc-sheet-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setBacklogOpen(false)}}><section className="cc-sheet"><button className="grab" onClick={()=>setBacklogOpen(false)}/><h2>Без даты</h2>{backlog.map(item=><button className="cc-sheet-thought" key={item.title} onClick={()=>setPlacing(item)}><span className="cc-polaroid"><Format format={item.format}/></span><strong>{item.title}</strong><ChevronRight/></button>)}<h3>Поставить на…</h3><div className="cc-mini-days">{days.map(day=><button onClick={()=>{setBacklogOpen(false);setPlacing(null)}} key={day.n}><small>{day.d}</small>{day.n}</button>)}</div></section></div>}
  </div>
 }
-
-function Backlog({onDrag,onSelect}:{onDrag:(item:Item)=>void;onSelect:(item:Item)=>void}){return <aside className="cc-backlog"><header><h2>Без даты</h2><span>2</span></header><p>Перетащите мысль на день</p>{backlog.map((item,i)=><button draggable onDragStart={()=>onDrag(item)} onClick={()=>onSelect(item)} className="cc-backlog-card" key={item.title}><GripVertical/><span className={`cc-polaroid art-${i}`}><Format format={item.format}/></span><span><strong>{item.title}</strong><small><Format format={item.format}/>{item.format}<i/></small></span></button>)}</aside>}
-function Week({demo,rhythm,onSelect,placing,onPlaced}:{demo:Demo;rhythm:number;onSelect:(item:Item)=>void;placing:Item|null;onPlaced:()=>void}){return <section className="cc-week">{days.map((day,i)=>{const items=planned[i]||[];const rhythmDay=i===1||i===4||i===6;const showSlot=rhythmDay&&!items.length&&(demo==="missed"||i!==1);return <article className={i===1?"today":""} key={day.n} onDragOver={e=>e.preventDefault()} onDrop={onPlaced}><header><span>{day.d}</span><b>{day.n}</b>{i===1&&<small>сегодня</small>}</header><div className="cc-day-content">{items.map(item=><Publication key={item.title} item={item} onClick={()=>onSelect(item)}/>)}{showSlot&&<button className="cc-slot"><Plus/>Свободно</button>}{i===3&&<div className="cc-shoot"><Camera/><span>Снять 3 кадра<small>Привычка и мотивация</small></span></div>}{placing&&i===2&&<div className="cc-drop-hint">Отпустите, чтобы поставить</div>}</div><footer><span>События</span><div><i/><i/><i/><b>+2</b></div></footer></article>})}</section>}
-function Month({onSelect}:{onSelect:(item:Item)=>void}){return <section className="cc-month"><header>{["Пн","Вт","Ср","Чт","Пт","Сб","Вс"].map(d=><span key={d}>{d}</span>)}</header><div>{monthDays.map((n,i)=><article className={!n?"outside":n===14?"today":""} key={i}>{n&&<><b>{n}</b>{n===17&&<button onClick={()=>onSelect(planned[4][0])}>Привычка и мотивация</button>}{n===21&&<button onClick={()=>onSelect(planned[1][0])}>Почему я ушёл из найма</button>}{n===23&&<><button>Утро без телефона</button><button>Три ошибки новичка</button><small>ещё 1</small></>}<div className="cc-event-dots"><i/><i/></div></>}</article>)}</div></section>}
+function Week({layer}:{layer:Layer}){return <section className="cc-week">{week.map(date=>{const key=iso(date);const items=publications.filter(item=>item.date===key);const images=eventImages[key]||[];const today=date.getDate()===14;const slot=date.getDate()===17;return <article className={today?"today":""} key={key}><header><span>{weekDay(date)}</span><b>{date.getDate()}</b>{today&&<small>сегодня</small>}</header><div className="cc-day-content">{items.map(item=><Publication key={item.title} item={item}/>)}{date.getDate()===15&&<div className="cc-shoot"><Camera/><span>Снять 3 кадра<small>Привычка и мотивация</small></span></div>}{slot&&<button className="cc-slot"><Plus/>Свободно</button>}</div>{layer==="Всё"&&images.length>0&&<footer><span>События</span><div>{images.map(src=><img src={src} alt="" key={src}/>)}</div></footer>}</article>})}</section>}
+function Month({layer}:{layer:Layer}){const labels=useMemo(()=>week.map(d=>weekDay(d)),[]);return <section className="cc-month"><header>{labels.map(d=><span key={d}>{d}</span>)}</header><div>{month.map((date,index)=>{if(!date)return <article className="outside" key={index}/>;const key=iso(date);const items=publications.filter(item=>item.date===key);const images=eventImages[key]||[];return <article className={date.getDate()===14?"today":""} key={key}><b>{date.getDate()}</b>{items.map(item=><button className="month-pub" key={item.title}><i className={`dot ${item.status.replace(" ","-")}`}/>{item.title}</button>)}{layer==="Всё"&&images.length>0&&<div className="month-events">{images.slice(0,2).map(src=><img src={src} alt="" key={src}/>)}{images.length>2&&<span>+{images.length-2}</span>}</div>}</article>})}</div></section>}
