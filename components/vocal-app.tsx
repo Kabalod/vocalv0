@@ -33,6 +33,7 @@ import { BUILD_COST, REPLY_COST } from "./resource";
 import { MOCK_TAKES, TakesPath } from "./takes-path";
 import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
 import CarouselStudio from "./carousel-studio";
+import ContentCalendar from "./content-calendar";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -628,6 +629,7 @@ export default function VocalApp() {
   useEffect(() => () => { if (buildTimer.current !== null) window.clearTimeout(buildTimer.current); }, []);
   const [tab, setTab] = useState<Tab>("Диалог");
   const [showThoughts, setShowThoughts] = useState(true);
+  const [calendarPage, setCalendarPage] = useState(false);
   const [palette, setPalette] = useState(false);
   const [menu, setMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -681,6 +683,7 @@ export default function VocalApp() {
         onAutoRenew={setAutoRenew}
       />
     );
+  if (calendarPage) return <ContentCalendar onThoughts={() => { setCalendarPage(false); setShowThoughts(true); }} onProfile={() => { setCalendarPage(false); setProfilePage(true); }} onNew={() => { setCalendarPage(false); setNewThought(true); setShowThoughts(true); }} />;
   if (showThoughts)
     return (
       <>
@@ -691,6 +694,7 @@ export default function VocalApp() {
           onOpen={(title) => {
             if (title === "Новая мысль") { setNewThought(true); return; }
             if (title === "Профиль") { setProfilePage(true); return; }
+            if (title === "Календарь") { setCalendarPage(true); setShowThoughts(false); return; }
             setActiveThought(title || "Привычка и мотивация");
             setShowThoughts(false);
             setPalette(false);
