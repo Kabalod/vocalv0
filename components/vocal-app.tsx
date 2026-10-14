@@ -11,6 +11,7 @@ import {
   Copy,
   Download,
   FileText,
+  GalleryHorizontal,
   HelpCircle,
   Lightbulb,
   Mic,
@@ -31,13 +32,14 @@ import { ScriptDesktop, initialScriptVersions, readingScript, useIsDesktop, with
 import { BUILD_COST, REPLY_COST } from "./resource";
 import { MOCK_TAKES, TakesPath } from "./takes-path";
 import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
+import CarouselStudio from "./carousel-studio";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
 import './mobile-ios.css';
 import './vocal-flows.css';
 
-type Tab = "Дубли" | "Диалог" | "Сценарий";
+type Tab = "Дубли" | "Диалог" | "Сценарий" | "Карусель";
 type RecordingState =
   "idle" | "recording" | "transcribing" | "review" | "error";
 const thoughts = [
@@ -280,7 +282,7 @@ function Header({
     return () => observer.disconnect();
   }, []);
   useEffect(() => { const close = () => setStatusMenu(false); const key = (e: KeyboardEvent) => { if(e.key === 'Escape') close() }; window.addEventListener('click', close); window.addEventListener('keydown', key); return () => { window.removeEventListener('click', close); window.removeEventListener('keydown', key) } }, []);
-  const tabIcons = { Дубли: Video, Диалог: MessageCircle, Сценарий: FileText };
+  const tabIcons = { Дубли: Video, Диалог: MessageCircle, Сценарий: FileText, Карусель: GalleryHorizontal };
   return (
     <header className="workspace-header">
       <button className="back-link" onClick={onThoughts}>
@@ -302,7 +304,7 @@ function Header({
         </button>
       </div>
       <nav className="tabs" aria-label="Раздел мысли">
-        {(["Дубли", "Диалог", "Сценарий"] as Tab[]).map((item) => {
+        {(["Дубли", "Диалог", "Сценарий", "Карусель"] as Tab[]).map((item) => {
           const Icon = tabIcons[item];
           return (
             <button
@@ -310,7 +312,7 @@ function Header({
               className={tab === item ? "tab tab-active" : "tab"}
               onClick={() => setTab(item)}
               aria-label={item}
-              title={`${item} ⌘${['Дубли','Диалог','Сценарий'].indexOf(item)+1}`}
+              title={`${item} ⌘${['Дубли','Диалог','Сценарий','Карусель'].indexOf(item)+1}`}
               aria-pressed={tab === item}
             >
               <Icon className={item === 'Дубли' ? 'mobile-drafts-icon' : undefined} />
@@ -640,7 +642,7 @@ export default function VocalApp() {
         event.preventDefault();
         setPalette(true);
       }
-      if ((event.metaKey || event.ctrlKey) && ['1','2','3'].includes(event.key)) { event.preventDefault(); setTab((['Дубли','Диалог','Сценарий'] as Tab[])[Number(event.key)-1]); }
+      if ((event.metaKey || event.ctrlKey) && ['1','2','3','4'].includes(event.key)) { event.preventDefault(); setTab((['Дубли','Диалог','Сценарий','Карусель'] as Tab[])[Number(event.key)-1]); }
       if (event.key === "Escape") {
         setPalette(false);
         setMenu(false);
@@ -725,8 +727,9 @@ export default function VocalApp() {
         </div>
       )}
       {tab === "Диалог" && <Dialog desktop={desktop} locked={locked} onSpend={(tenths) => setSpent(value => value + tenths)} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
-      {tab === "Сценарий" && (desktop ? <ScriptDesktop locked={locked} versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView locked={locked} />)}
-      {tab === "Дубли" && <DraftsView locked={locked} onRecord={() => setTakeRecorder(true)} />}
+ {tab === "Сценарий" && (desktop ? <ScriptDesktop locked={locked} versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView locked={locked} />)}
+ {tab === "Дубли" && <DraftsView locked={locked} onRecord={() => setTakeRecorder(true)} />}
+ {tab === "Карусель" && <CarouselStudio />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
     </ThoughtShell>
   );
