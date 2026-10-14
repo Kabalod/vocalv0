@@ -1,15 +1,17 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Copy, Download, GalleryHorizontal, GripVertical, Camera, LayoutGrid, List, MessageSquareQuote, MoreHorizontal, Plus, RefreshCw, Share, Sparkles, Trash2, Type, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Download, GalleryHorizontal, GripVertical, Camera, LayoutGrid, List, MessageSquareQuote, MoreHorizontal, Palette, Plus, RefreshCw, Share, Sparkles, Trash2, Type, X } from "lucide-react";
+import { CarouselSlide, carouselThemeStyles, type CarouselSlideData } from "./carousel-slide";
 import "./carousel-studio.css";
 import "./carousel-studio-mobile.css";
+import "./carousel-studio-polish.css";
 
 type StudioState = "no-script" | "empty" | "building" | "error" | "quota" | "ready";
 type ThemeName = "graphite" | "paper" | "contrast";
 type MobileSheet = "edit" | "layout" | "theme" | "order" | "share" | null;
 type EditableField = "kicker" | "title" | "body";
-type Slide = { id: number; kicker: string; title: string; body: string; layout: number };
+type Slide = CarouselSlideData;
 
 const initialSlides: Slide[] = [
   { id: 1, kicker: "Привычка и мотивация", title: "Мотивация исчезает. Привычка остаётся.", body: "Почему первый шаг важнее желания", layout: 0 },
@@ -70,10 +72,10 @@ export default function CarouselStudio() {
   };
 
   return <section className="carousel-studio">
-    <div className="carousel-state-switch"><label htmlFor="carousel-state">Состояние</label><select id="carousel-state" value={state} onChange={event => setState(event.target.value as StudioState)}>{Object.entries(stateLabels).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></div>
+    <div className="carousel-state-switch"><label htmlFor="carousel-state">Демо</label><select id="carousel-state" value={state} onChange={event => setState(event.target.value as StudioState)}>{Object.entries(stateLabels).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></div>
     {state !== "ready" ? <StateCard state={state} onState={setState}/> : <>
       <div className="carousel-mobile-ready">
-        {stale&&<div className="mobile-stale">Сценарий изменился <button onClick={rebuild}>Обновить</button></div>}
+        {stale&&<div className="mobile-stale">Сценарий обновился <button onClick={rebuild}>Собрать заново</button></div>}
         <div className="mobile-slide-track" onScroll={event => {
           const target = event.currentTarget;
           const firstSlide = target.firstElementChild as HTMLElement | null;
@@ -81,29 +83,24 @@ export default function CarouselStudio() {
           const next = Math.round(target.scrollLeft / (firstSlide.offsetWidth + 12));
           setActive(Math.max(0, Math.min(slides.length - 1, next)));
         }}>
-          {slides.map((slide,index)=><article className={`mobile-editable-slide layout-${slide.layout} ${themeClass}`} key={slide.id}>
-            <div className="slide-brand">VOCAL <span>{index+1}/{slides.length}</span></div>
-            <button onClick={()=>{setActive(index);openEditor("kicker")}}>{slide.kicker}</button>
-            <button className="mobile-slide-title" onClick={()=>{setActive(index);openEditor("title")}}>{slide.title}</button>
-            <button onClick={()=>{setActive(index);openEditor("body")}}>{slide.body}</button>
-            <small>{handle}</small>
-          </article>)}
+          {slides.map((slide,index)=><div className="mobile-slide-shell" key={slide.id}><CarouselSlide slide={slide} theme={theme} index={index} total={slides.length} handle={handle} onEdit={field=>{setActive(index);openEditor(field)}}/></div>)}
         </div>
-        <div className="mobile-slide-meta"><div className="slide-dots" aria-label={`Слайд ${active+1} из ${slides.length}`}>{dots.map(index=><button aria-label={`Слайд ${index+1}`} className={index===active?"active":""} onClick={()=>{setActive(index);document.querySelectorAll<HTMLElement>(".mobile-editable-slide")[index]?.scrollIntoView({behavior:"smooth",inline:"start"})}} key={index}/>)}</div><span>{active+1} / {slides.length}</span></div>
+        <div className="mobile-slide-meta"><div className="slide-dots" aria-label={`Слайд ${active+1} из ${slides.length}`}>{dots.map(index=><button aria-label={`Слайд ${index+1}`} className={index===active?"active":""} onClick={()=>{setActive(index);document.querySelectorAll<HTMLElement>(".mobile-slide-shell")[index]?.scrollIntoView({behavior:"smooth",inline:"start"})}} key={index}/>)}</div><span>{active+1} / {slides.length}</span></div>
+        <button className="mobile-caption-card" onClick={()=>setMobileSheet("share")}><span><b>Подпись к посту</b>{caption}</span><small>Копировать</small></button>
         <nav className="carousel-mobile-toolbar" aria-label="Инструменты карусели">
           <button onClick={()=>setMobileSheet("layout")}><LayoutGrid/><span>Макет</span></button>
-          <button onClick={()=>setMobileSheet("theme")}><Sparkles/><span>Тема</span></button>
+          <button onClick={()=>setMobileSheet("theme")}><Palette/><span>Тема</span></button>
           <button onClick={()=>setMobileSheet("order")}><List/><span>Порядок</span></button>
           <button onClick={()=>setMobileSheet("share")}><Share/><span>Скачать</span></button>
         </nav>
       </div>
-      <aside className="slide-rail" aria-label="Слайды карусели"><div className="slide-strip">{slides.map((slide,index)=><button draggable onDragStart={()=>setDragged(index)} onDragOver={event=>event.preventDefault()} onDrop={()=>{if(dragged===null||dragged===index)return;const next=[...slides];const [item]=next.splice(dragged,1);next.splice(index,0,item);setSlides(next);setActive(index);setDragged(null)}} onClick={()=>setActive(index)} className={active===index?"active":""} key={slide.id}><span>{index+1}</span><GripVertical/><div className={`mini-slide ${themeClass}`}><b>{slide.title}</b></div></button>)}</div><button className="add-slide"><Plus/> Слайд</button></aside>
+      <aside className="slide-rail" aria-label="Слайды карусели"><div className="slide-strip">{slides.map((slide,index)=><button draggable onDragStart={()=>setDragged(index)} onDragOver={event=>event.preventDefault()} onDrop={()=>{if(dragged===null||dragged===index)return;const next=[...slides];const [item]=next.splice(dragged,1);next.splice(index,0,item);setSlides(next);setActive(index);setDragged(null)}} onClick={()=>setActive(index)} className={active===index?"active":""} key={slide.id}><span>{index+1}</span><GripVertical/><div className="mini-slide-shell"><CarouselSlide slide={slide} theme={theme} index={index} total={slides.length} handle={handle}/></div></button>)}</div><button className="add-slide"><Plus/> Слайд</button></aside>
       <main className="carousel-canvas">
         {stale&&<div className="stale-banner">Сценарий обновился после сборки карусели <button onClick={rebuild}>Собрать заново</button></div>}
-        <div className="slide-stage"><button className="slide-arrow" aria-label="Предыдущий слайд" disabled={active===0} onClick={()=>setActive(i=>Math.max(0,i-1))}><ArrowLeft/></button><article className={`editable-slide layout-${current.layout} ${themeClass}`}><div className="slide-brand">VOCAL <span>{active+1}/{slides.length}</span></div><Editable value={current.kicker} limit={32} onChange={value=>update("kicker",value)}/><Editable as="h2" value={current.title} limit={60} onChange={value=>update("title",value)}/><Editable value={current.body} limit={120} onChange={value=>update("body",value)}/><small>{handle}</small></article><button className="slide-arrow" aria-label="Следующий слайд" disabled={active===slides.length-1} onClick={()=>setActive(i=>Math.min(slides.length-1,i+1))}><ArrowRight/></button></div>
+        <div className="slide-stage"><button className="slide-arrow" aria-label="Предыдущий слайд" disabled={active===0} onClick={()=>setActive(i=>Math.max(0,i-1))}><ArrowLeft/></button><div className="desktop-slide-shell"><CarouselSlide slide={current} theme={theme} index={active} total={slides.length} handle={handle}/></div><button className="slide-arrow" aria-label="Следующий слайд" disabled={active===slides.length-1} onClick={()=>setActive(i=>Math.min(slides.length-1,i+1))}><ArrowRight/></button></div>
         <div className="slide-dots" aria-label={`Слайд ${active+1} из ${slides.length}`}>{dots.map(index=><button aria-label={`Слайд ${index+1}`} className={index===active?"active":""} onClick={()=>setActive(index)} key={index}/>)}</div>
       </main>
-      <aside className="carousel-inspector"><div className="inspector-section"><h3>Макет</h3><div className="layout-picker">{layoutIcons.map((Icon,index)=><button className={current.layout===index?"active":""} onClick={()=>update("layout",index)} aria-label={`Макет ${index+1}`} key={index}><Icon/></button>)}</div></div><div className="inspector-section"><h3>Тема</h3><div className="theme-picker">{(["graphite","paper","contrast"] as ThemeName[]).map(item=><button className={`${item} ${theme===item?"active":""}`} onClick={()=>setTheme(item)} aria-label={`Тема ${item}`} key={item}/>)}</div></div><label className="inspector-field">Ник<input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@ник"/></label><label className="inspector-field caption-field"><span>Подпись к посту <small>{caption.length}/2200</small></span><textarea value={caption} maxLength={2200} onChange={e=>setCaption(e.target.value)}/><button onClick={()=>navigator.clipboard.writeText(caption).catch(()=>{})}><Copy/> Копировать</button></label><div className="carousel-actions"><button className="carousel-primary" onClick={exportSlides}><Download/> Скачать 7 слайдов</button><button onClick={rebuild}><RefreshCw/> Собрать заново</button></div></aside>
+      <aside className="carousel-inspector"><div className="inspector-section"><h3>Макет</h3><div className="layout-picker">{["Обложка","Мысль","Список","Шаги","Цитата","Число","Призыв"].map((name,index)=><button className={current.layout===index?"active":""} onClick={()=>update("layout",index)} key={name}><span className={`layout-schematic layout-schematic-${index}`}><i/><i/><i/><i/></span><small>{name}</small></button>)}</div></div><div className="inspector-section"><h3>Тема</h3><div className="theme-picker">{(["graphite","paper","contrast"] as ThemeName[]).map(item=><button className={theme===item?"active":""} onClick={()=>setTheme(item)} key={item}><i style={{background:carouselThemeStyles[item].background,color:carouselThemeStyles[item].text,borderColor:carouselThemeStyles[item].accent}}>Аа</i><small>{{graphite:"Графит",paper:"Бумага",contrast:"Контраст"}[item]}</small></button>)}</div></div><label className="inspector-field">Ник<input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@ник"/></label><label className="inspector-field caption-field"><span>Подпись к посту <small>{caption.length}/2200</small></span><textarea value={caption} maxLength={2200} onChange={e=>setCaption(e.target.value)}/><button onClick={()=>navigator.clipboard.writeText(caption).catch(()=>{})}><Copy/> Копировать</button></label><div className="carousel-actions"><button className="carousel-primary" onClick={exportSlides}><Download/> Скачать 7 слайдов</button><button onClick={rebuild}><RefreshCw/> Собрать заново</button></div></aside>
     </>}
     {mobileSheet&&<div className="carousel-sheet-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setMobileSheet(null)}}>
       <section className={`carousel-mobile-sheet sheet-${mobileSheet}`} role="dialog" aria-modal="true" aria-label={mobileSheet === "edit" ? fieldLabels[editingField] : undefined}>
