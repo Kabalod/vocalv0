@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Clapperboard, GalleryHorizontal, GripVertical, LayoutGrid, MoreHorizontal, Plus, Trash2, UserRound, X } from "lucide-react";
 import "./content-calendar.css";
+import EventsDiary from "./events-diary";
 
 type View = "week" | "month";
 type Demo = "empty" | "week" | "missed" | "month";
@@ -18,9 +19,10 @@ function Format({format}:{format:Item["format"]}){return format==="рилс"?<Cl
 function Publication({item,onClick}:{item:Item;onClick:()=>void}){return <button className="cc-publication" onClick={onClick}>{item.time&&<time>{item.time}</time>}<strong>{item.title}</strong><span><Format format={item.format}/>{item.format}{statusLabel(item)}</span></button>}
 
 export default function ContentCalendar({onThoughts,onProfile,onNew}:{onThoughts:()=>void;onProfile:()=>void;onNew:()=>void}){
- const [view,setView]=useState<View>("week"); const [demo,setDemo]=useState<Demo>("week"); const [layer,setLayer]=useState<Layer>("План"); const [rhythm,setRhythm]=useState(3); const [selected,setSelected]=useState<Item|null>(null); const [backlogOpen,setBacklogOpen]=useState(false); const [placing,setPlacing]=useState<Item|null>(null);
+ const [view,setView]=useState<View>("week"); const [demo,setDemo]=useState<Demo>("week"); const [layer,setLayer]=useState<Layer>("События"); const [rhythm,setRhythm]=useState(3); const [selected,setSelected]=useState<Item|null>(null); const [backlogOpen,setBacklogOpen]=useState(false); const [placing,setPlacing]=useState<Item|null>(null);
  const effectiveView=demo==="month"?"month":view; const empty=demo==="empty";
  const setDemoState=(value:Demo)=>{setDemo(value);if(value==="month")setView("month")};
+ if(layer==="События") return <EventsDiary onThoughts={onThoughts} onProfile={onProfile} onNew={onNew} onLayer={setLayer}/>;
  return <div className="content-calendar">
   <header className="cc-global"><a>Vocal</a><nav><button onClick={onThoughts}>Мысли</button><button className="active">Календарь</button><button onClick={onProfile}>Профиль</button></nav><button className="cc-avatar" onClick={onProfile}><UserRound/></button></header>
   <main className="cc-main">
