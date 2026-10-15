@@ -36,6 +36,7 @@ import CarouselStudio from "./carousel-studio";
 import EditingStudio from "./editing-studio";
 import ContentCalendar from "./content-calendar";
 import PlanningDesktop, { type PlanningStudioTab } from "./planning-desktop";
+import PlanningMobile, { type MobileStudioTab } from "./planning-mobile";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -430,7 +431,7 @@ function Dialog({ desktop = false, locked = false, onSpend, versions, onBuildScr
               className="mic-button"
               onClick={start}
               disabled={locked}
-              aria-label="Нажмите и говорите"
+              aria-label="Нажмите и го��орите"
             ><Mic /></button>
             <span>Нажмите и говорите</span>
             <small>Демо записи · ответы моковые</small>
@@ -688,6 +689,7 @@ export default function VocalApp() {
     );
   if (calendarPage) return <ContentCalendar onThoughts={() => { setCalendarPage(false); setShowThoughts(true); }} onProfile={() => { setCalendarPage(false); setProfilePage(true); }} onNew={() => { setCalendarPage(false); setNewThought(true); setShowThoughts(true); }} />;
   if (desktop && planningPage) return <PlanningDesktop onThoughts={() => { setPlanningPage(false); setShowThoughts(true); }} onProfile={() => setProfilePage(true)} onOpenStudio={(title: string, studioTab: PlanningStudioTab) => { setActiveThought(title); setTab(studioTab); setPlanningPage(false); setShowThoughts(false); }} />;
+  if (!desktop && planningPage) return <PlanningMobile onThoughts={() => { setPlanningPage(false); setShowThoughts(true); }} onProfile={() => setProfilePage(true)} onNew={() => { setPlanningPage(false); setShowThoughts(true); setNewThought(true); }} onOpenStudio={(title: string, studioTab: MobileStudioTab) => { setActiveThought(title); setTab(studioTab); setPlanningPage(false); setShowThoughts(false); }} />;
   if (showThoughts)
     return (
       <>
