@@ -20,7 +20,7 @@ const THOUGHTS:Record<ThoughtId,{title:string;format:string;date?:number;shootDa
 };
 const MOMENTS:{id:MomentId;time:string;type:string;title:string;src:string;hint?:string;taken?:string}[]=[
  {id:"coffee",time:"08:10",type:"photo",title:"Кофе на подоконнике",src:"/events/coffee.png",taken:"Утро без телефона"},
- {id:"road",time:"09:30 · 0:24",type:"video",title:"Дорога в зал",src:"/events/gym-road.png",hint:"Кадр 02 · Привычка и мотивация"},
+ {id:"road",time:"09:30 · 0:24",type:"video",title:"Дорога в зал",src:"/events/gym-road.png",hint:"Кадр 03 · Привычка и мотивация"},
  {id:"voice",time:"13:05 · 0:41",type:"audio",title:"Пятнадцать минут — тоже тренировка",src:"/images/thought-landscape.png",hint:"Кадр 03 · Привычка и мотивация"},
  {id:"after",time:"16:20 · 0:18",type:"video",title:"После тренировки",src:"/events/evening.png",hint:"Кадр 04 · Привычка и мотивация"},
  {id:"quote",time:"19:40",type:"quote",title:"15 минут в плохой день — тоже ритм",src:"/images/thought-landscape.png",hint:"Кадр 05 · Привычка и мотивация"},
@@ -38,7 +38,7 @@ export default function PlanningDesktop({onThoughts,onProfile,onOpenStudio}:{onT
  const title=screen==="today"?"Сегодня":screen==="vault"?"Копилка":"Съёмочный день";
  return <div className="pd-shell">
   <aside className="pd-sidebar"><div className="pd-brand">Vocal</div><nav><button className={screen==="today"?"active":""} onClick={()=>setScreen("today")}><Sun/>Сегодня</button><button onClick={onThoughts}><Lightbulb/>Мысли</button><button className={screen==="vault"?"active":""} onClick={()=>setScreen("vault")}><Images/>Копилка <b>{4-accepted.length}</b></button></nav><div className="pd-side-section"><span>Съёмочные дни</span><button className={screen==="shoot"?"active":""} onClick={()=>setScreen("shoot")}><i/><span>Чт, 15 окт · 8 кадров</span></button></div><button className="pd-profile" onClick={onProfile}><img src="/placeholder-user.jpg" alt="Профиль"/><span><strong>Анна</strong><small>Профиль</small></span><ChevronRight/></button></aside>
-  <section className="pd-window"><header className="pd-toolbar"><strong>{title}</strong><div><button aria-label="Поиск"><Search/></button><span className="pd-pop-anchor"><button aria-label="Создать" onClick={()=>setCreate(!create)}><Plus/></button>{create&&<Popup className="pd-create"><button>Мысль <kbd>⌘N</kbd></button><button>Момент <kbd>⇧⌘N</kbd></button><button>Референс</button></Popup>}</span></div></header>
+  <section className="pd-window"><header className="pd-toolbar"><strong>{title}</strong><div><button aria-label="Поиск"><Search/></button><span className="pd-pop-anchor"><button aria-label="Создать" onClick={()=>setCreate(!create)}><Plus/></button>{create&&<Popup className="pd-create"><button>Мысль <kbd>⌘N</kbd></button><button>Момент <kbd>⇧⌘N</kbd></button><button>Референс <kbd aria-hidden="true" /></button></Popup>}</span></div></header>
   {screen==="today"&&<Today view={view} setView={setView} scheduled={scheduled} setScheduled={setScheduled} onInspect={setInspector} onShoot={()=>setScreen("shoot")} slot={slot} setSlot={setSlot} rhythm={rhythm} setRhythm={setRhythm} onOpenStudio={onOpenStudio} onMoment={(id)=>{setMoment(id);setScreen("vault")}}/>}
   {screen==="vault"&&<Vault filter={vaultFilter} setFilter={setVaultFilter} accepted={accepted} setAccepted={setAccepted} selected={selected} setSelected={setSelected} onMoment={setMoment}/>} 
   {screen==="shoot"&&<ShootDay done={doneShots} setDone={setDoneShots} onInspect={setInspector} onStart={()=>setShooting(true)}/>} 
