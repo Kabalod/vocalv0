@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Vocal — Привычка и мотивация',
+  title: 'Vocal — пространство для мыслей',
   description: 'Камерный инструмент, который помогает развить мысль и собрать разговорный сценарий.',
   generator: 'v0.app',
   icons: {

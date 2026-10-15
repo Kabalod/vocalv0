@@ -35,6 +35,7 @@ import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type
 import CarouselStudio from "./carousel-studio";
 import EditingStudio from "./editing-studio";
 import ContentCalendar from "./content-calendar";
+import VocalMobile from "./vocal-mobile";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -685,25 +686,7 @@ export default function VocalApp() {
       />
     );
   if (calendarPage) return <ContentCalendar onThoughts={() => { setCalendarPage(false); setShowThoughts(true); }} onProfile={() => { setCalendarPage(false); setProfilePage(true); }} onNew={() => { setCalendarPage(false); setNewThought(true); setShowThoughts(true); }} />;
-  if (showThoughts)
-    return (
-      <>
-        <ThoughtLibrary
-          locked={locked}
-          resource={resource}
-          onRenew={() => setPayment({ mode: "subscribe", initial: "select" })}
-          onOpen={(title) => {
-            if (title === "Новая мысль") { setNewThought(true); return; }
-            if (title === "Профиль") { setProfilePage(true); return; }
-            if (title === "Календарь") { setCalendarPage(true); setShowThoughts(false); return; }
-            setActiveThought(title || "Привычка и мотивация");
-            setShowThoughts(false);
-            setPalette(false);
-          }}
-        />
-        <NewThoughtModal open={newThought} onClose={() => setNewThought(false)} onCreate={() => { setNewThought(false); setActiveThought("Новая мысль"); setShowThoughts(false); }} />
-      </>
-    );
+  if (showThoughts) return <VocalMobile onProfile={() => setProfilePage(true)} onOpen={(title) => { setActiveThought(title); setShowThoughts(false); setTab("Диалог"); }} />;
   return (
     <ThoughtShell
       onThoughts={() => setShowThoughts(true)}
