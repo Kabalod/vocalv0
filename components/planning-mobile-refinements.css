@@ -1,0 +1,66 @@
+@media (max-width: 640px) {
+  .mp-topbar > strong {
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+
+  .mp-topbar.compact > strong {
+    opacity: 1;
+  }
+
+  .mp-topbar .mp-select {
+    width: auto;
+    height: 42px;
+    padding: 0 2px 0 8px;
+    color: var(--mp-soft);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .mp-topbar:has(.mp-select) {
+    grid-template-columns: 42px 1fr auto 42px;
+  }
+
+  .mp-vault-chips {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin: 0 -16px 16px;
+    padding: 0 16px;
+    scrollbar-width: none;
+  }
+
+  .mp-vault-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mp-vault-chips button {
+    flex: none;
+    padding: 8px 13px;
+    border-radius: 999px;
+    background: var(--mp-field);
+    color: var(--mp-muted);
+    font-size: 13px;
+  }
+
+  .mp-vault-chips button.active {
+    background: var(--mp-text);
+    color: var(--mp-bg);
+  }
+
+  .mp-native.audio {
+    position: relative;
+  }
+
+  .mp-native.audio time {
+    position: absolute;
+    right: 8px;
+    bottom: 7px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: #0009;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+}
