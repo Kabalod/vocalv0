@@ -35,6 +35,7 @@ import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type
 import CarouselStudio from "./carousel-studio";
 import EditingStudio from "./editing-studio";
 import ContentCalendar from "./content-calendar";
+import PlanningDesktop, { type PlanningStudioTab } from "./planning-desktop";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -630,6 +631,7 @@ export default function VocalApp() {
   useEffect(() => () => { if (buildTimer.current !== null) window.clearTimeout(buildTimer.current); }, []);
   const [tab, setTab] = useState<Tab>("Диалог");
   const [showThoughts, setShowThoughts] = useState(true);
+  const [planningPage, setPlanningPage] = useState(true);
   const [calendarPage, setCalendarPage] = useState(false);
   const [palette, setPalette] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -685,6 +687,7 @@ export default function VocalApp() {
       />
     );
   if (calendarPage) return <ContentCalendar onThoughts={() => { setCalendarPage(false); setShowThoughts(true); }} onProfile={() => { setCalendarPage(false); setProfilePage(true); }} onNew={() => { setCalendarPage(false); setNewThought(true); setShowThoughts(true); }} />;
+  if (desktop && planningPage) return <PlanningDesktop onThoughts={() => { setPlanningPage(false); setShowThoughts(true); }} onProfile={() => setProfilePage(true)} onOpenStudio={(title: string, studioTab: PlanningStudioTab) => { setActiveThought(title); setTab(studioTab); setPlanningPage(false); setShowThoughts(false); }} />;
   if (showThoughts)
     return (
       <>
