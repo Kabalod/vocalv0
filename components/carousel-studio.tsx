@@ -1,117 +1,80 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Copy, Download, GalleryHorizontal, GripVertical, Camera, LayoutGrid, List, MessageSquareQuote, MoreHorizontal, Palette, Plus, RefreshCw, Share, Sparkles, Trash2, Type, X } from "lucide-react";
-import { CarouselSlide, carouselThemeStyles, type CarouselSlideData } from "./carousel-slide";
+import { useRef, useState } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Copy, Download, Eye, GripVertical, Image as ImageIcon, LayoutGrid, MoreHorizontal, Palette, Plus, Share2, Sparkles, Trash2, Type, X } from "lucide-react";
+import { CarouselSlide, carouselThemeStyles, type CarouselLayout, type CarouselSlideData, type CarouselTheme } from "./carousel-slide";
 import "./carousel-studio.css";
-import "./carousel-studio-mobile.css";
-import "./carousel-studio-polish.css";
 
-type StudioState = "no-script" | "empty" | "building" | "error" | "quota" | "ready";
-type ThemeName = "graphite" | "paper" | "contrast";
-type MobileSheet = "edit" | "layout" | "theme" | "order" | "share" | null;
-type EditableField = "kicker" | "title" | "body";
-type Slide = CarouselSlideData;
+type Mode = "slide" | "overview";
+type DemoState = "no-script" | "empty" | "building" | "error" | "ready" | "updated";
+type Inspector = "carousel" | "slide" | "text";
+type Sheet = "text" | "theme" | "caption" | "layout" | "share" | null;
 
-const initialSlides: Slide[] = [
-  { id: 1, kicker: "Привычка и мотивация", title: "Мотивация исчезает. Привычка остаётся.", body: "Почему первый шаг важнее желания", layout: 0 },
-  { id: 2, kicker: "01", title: "На третий день мне стало лень", body: "Но я всё равно вышел — просто потому, что делал это вчера.", layout: 1 },
-  { id: 3, kicker: "Главная мысль", title: "Привычка держится не на желании", body: "Она держится на простом, повторяемом первом шаге.", layout: 2 },
-  { id: 4, kicker: "02", title: "Упростите вход", body: "Не «пробежать пять километров», а просто надеть кроссовки.", layout: 3 },
-  { id: 5, kicker: "Формула", title: "Маленькое действие → знакомый ритм", body: "Ритм постепенно становится сильнее настроения.", layout: 4 },
-  { id: 6, kicker: "Попробуйте сегодня", title: "Выберите шаг, который невозможно не сделать", body: "Две минуты. Один повтор. Никаких переговоров с собой.", layout: 5 },
-  { id: 7, kicker: "Сохраните", title: "Не ждите мотивацию. Создайте ритм.", body: "@vocal · Мысли, которые становятся контентом", layout: 6 },
+const initialSlides: CarouselSlideData[] = [
+  { id: 1, layout: "cover", kicker: "3 ошибки", title: "Почему вы бросаете спорт к середине февраля" },
+  { id: 2, layout: "statement", title: "Дело не в силе воли", body: "В январе мы берём план на человека, которым только хотим стать" },
+  { id: 3, layout: "list", title: "Что ломает привычку", items: ["Слишком длинные тренировки", "Цель на результат, а не на действие", "Пропуск = провал"] },
+  { id: 4, layout: "number", value: "15 минут", title: "Хватит, чтобы не выпасть из ритма в плохой день" },
+  { id: 5, layout: "steps", title: "Как перезапуститься", items: ["Сократите план вдвое", "Отмечайте факт, а не вес", "После пропуска — сразу следующая"] },
+  { id: 6, layout: "quote", title: "Я перестала ждать понедельника — тренируюсь в тот день, когда вспомнила" },
+  { id: 7, layout: "cta", title: "Сохраните, чтобы вернуться в марте", body: "Напишите в директ СТАРТ — пришлю план на 15 минут" },
 ];
+const layouts: { name: string; value: CarouselLayout }[] = [{name:"Обложка",value:"cover"},{name:"Мысль",value:"statement"},{name:"Список",value:"list"},{name:"Шаги",value:"steps"},{name:"Цитата",value:"quote"},{name:"Число",value:"number"},{name:"Призыв",value:"cta"}];
 
-const layoutIcons = [Type, List, MessageSquareQuote, LayoutGrid, Sparkles, GalleryHorizontal, Check];
-const stateLabels: Record<StudioState, string> = { "no-script": "Нет сценария", empty: "Пусто", building: "Сборка", error: "Ошибка", quota: "Ресурс закончился", ready: "Готово" };
-
-function StateCard({ state, onState }: { state: StudioState; onState: (value: StudioState) => void }) {
-  if (state === "building") return <section className="carousel-state carousel-building"><div className="stack-placeholder skeleton"/><div className="thumb-skeletons">{Array.from({length:7},(_,i)=><i className="skeleton" key={i}/>)}</div><h2>Раскладываю мысль по слайдам…</h2></section>;
-  const config = state === "no-script"
-    ? { title: "Карусель делается из сценария. Сначала соберём его.", button: "Перейти к сценарию" }
-    : state === "empty"
-      ? { title: "Соберу карусель из вашего сценария — 6–9 слайдов, которые можно сразу выложить", button: "Сделать карусель" }
-      : state === "quota"
-        ? { title: "Ресурс на этот период закончился", button: "Продлить подписку" }
-        : { title: "Не получилось разложить мысль. Попробуйте ещё раз", button: "Повторить" };
-  return <section className="carousel-state"><div className="card-stack" aria-hidden="true"><i/><i/><i/></div><h2>{config.title}</h2><button className="carousel-primary" onClick={() => onState(state === "no-script" ? "empty" : state === "quota" ? "quota" : state === "error" ? "building" : "ready")}>{config.button}</button></section>;
-}
-
-function Editable({ value, limit, onChange, as = "p" }: { value: string; limit: number; onChange: (value: string) => void; as?: "h2" | "p" }) {
-  const Tag = as;
-  return <div className="editable-wrap"><Tag contentEditable suppressContentEditableWarning onInput={event => { const next = event.currentTarget.textContent || ""; if (next.length <= limit) onChange(next); else event.currentTarget.textContent = value; }}>{value}</Tag><span className={value.length >= limit ? "limit" : ""}>{value.length}/{limit}</span></div>;
+function ScaledSlide({ slide, scale, ...props }: { slide: CarouselSlideData; scale: number; theme: CarouselTheme; index: number; total: number; handle: string; selectedField?: string | null; onSelectField?: (field: string) => void; onSelectSlide?: () => void }) {
+  return <div className="cs-scaled" style={{ width: 1080 * scale, height: 1350 * scale }}><div style={{ width:1080,height:1350,transform:`scale(${scale})`,transformOrigin:"top left" }}><CarouselSlide slide={slide} {...props}/></div></div>;
 }
 
 export default function CarouselStudio() {
-  const [state, setState] = useState<StudioState>("ready");
   const [slides, setSlides] = useState(initialSlides);
   const [active, setActive] = useState(0);
-  const [theme, setTheme] = useState<ThemeName>("graphite");
-  const [handle, setHandle] = useState("@vocal");
-  const [caption, setCaption] = useState("Мотивация приходит и уходит. А привычка остаётся, если первый шаг достаточно прост. Сохраните эту карусель и выберите действие, которое займёт не больше двух минут.");
-  const [stale, setStale] = useState(true);
-  const [toast, setToast] = useState(false);
+  const [mode, setMode] = useState<Mode>("slide");
+  const [theme, setTheme] = useState<CarouselTheme>("graphite");
+  const [inspector, setInspector] = useState<Inspector>("carousel");
+  const [selectedField, setSelectedField] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [preview, setPreview] = useState(false);
+  const [download, setDownload] = useState(false);
+  const [demo, setDemo] = useState<DemoState>("updated");
+  const [handle, setHandle] = useState("@anna.move");
+  const [caption, setCaption] = useState("Три ошибки, из-за которых привычка не переживает февраль — и простой способ вернуться без чувства вины.");
   const [dragged, setDragged] = useState<number | null>(null);
-  const [mobileSheet, setMobileSheet] = useState<MobileSheet>(null);
-  const [editingField, setEditingField] = useState<EditableField>("title");
-  const swipeStart = useRef(0);
+  const trackRef = useRef<HTMLDivElement>(null);
   const current = slides[active];
-  const themeClass = `theme-${theme}`;
-  const update = (key: keyof Slide, value: string | number) => setSlides(items => items.map((slide, index) => index === active ? { ...slide, [key]: value } : slide));
-  const dots = useMemo(() => slides.map((_, index) => index), [slides]);
-  const rebuild = () => { setStale(false); setState("building"); window.setTimeout(() => setState("ready"), 900); };
-  const exportSlides = () => { setToast(true); window.setTimeout(() => setToast(false), 2600); };
-  const fieldLabels: Record<EditableField, string> = { kicker: "Надзаголовок", title: "Заголовок", body: "Пункт 2" };
-  const fieldLimits: Record<EditableField, number> = { kicker: 32, title: 60, body: 120 };
-  const openEditor = (field: EditableField) => { setEditingField(field); setMobileSheet("edit"); };
-  const removeSlide = (index: number) => {
-    if (slides.length <= 1) return;
-    setSlides(items => items.filter((_, itemIndex) => itemIndex !== index));
-    setActive(currentIndex => Math.min(currentIndex, slides.length - 2));
-  };
+  const selectField = (field: string) => { setSelectedField(field); setInspector("text"); if (window.innerWidth <= 640) setSheet("text"); };
+  const selectSlide = () => { setSelectedField(null); setInspector("slide"); };
+  const resetSelection = () => { setSelectedField(null); setInspector("carousel"); };
+  const move = (to: number) => { if (dragged === null || dragged === to) return; setSlides(items => { const copy=[...items]; const [item]=copy.splice(dragged,1); copy.splice(to,0,item); return copy; }); setActive(to); setDragged(null); };
+  const duplicate = () => setSlides(items => [...items.slice(0,active+1), {...current,id:Date.now()}, ...items.slice(active+1)]);
+  const remove = () => { if(slides.length < 2) return; setSlides(items=>items.filter((_,i)=>i!==active)); setActive(Math.max(0,active-1)); };
+  const scrollTo = (index: number) => { setActive(index); trackRef.current?.children[index]?.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"}); };
+  if (demo !== "ready" && demo !== "updated") return <EmptyState state={demo} setState={setDemo}/>;
 
-  return <section className="carousel-studio">
-    <div className="carousel-state-switch"><label htmlFor="carousel-state">Демо</label><select id="carousel-state" value={state} onChange={event => setState(event.target.value as StudioState)}>{Object.entries(stateLabels).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></div>
-    {state !== "ready" ? <StateCard state={state} onState={setState}/> : <>
-      <div className="carousel-mobile-ready">
-        {stale&&<div className="mobile-stale">Сценарий обновился <button onClick={rebuild}>Собрать заново</button></div>}
-        <div className="mobile-slide-track" onScroll={event => {
-          const target = event.currentTarget;
-          const firstSlide = target.firstElementChild as HTMLElement | null;
-          if (!firstSlide) return;
-          const next = Math.round(target.scrollLeft / (firstSlide.offsetWidth + 12));
-          setActive(Math.max(0, Math.min(slides.length - 1, next)));
-        }}>
-          {slides.map((slide,index)=><div className="mobile-slide-shell" key={slide.id}><CarouselSlide slide={slide} theme={theme} index={index} total={slides.length} handle={handle} onEdit={field=>{setActive(index);openEditor(field)}}/></div>)}
-        </div>
-        <div className="mobile-slide-meta"><div className="slide-dots" aria-label={`Слайд ${active+1} из ${slides.length}`}>{dots.map(index=><button aria-label={`Слайд ${index+1}`} className={index===active?"active":""} onClick={()=>{setActive(index);document.querySelectorAll<HTMLElement>(".mobile-slide-shell")[index]?.scrollIntoView({behavior:"smooth",inline:"start"})}} key={index}/>)}</div><span>{active+1} / {slides.length}</span></div>
-        <button className="mobile-caption-card" onClick={()=>setMobileSheet("share")}><span><b>Подпись к посту</b>{caption}</span><small>Копировать</small></button>
-        <nav className="carousel-mobile-toolbar" aria-label="Инструменты карусели">
-          <button onClick={()=>setMobileSheet("layout")}><LayoutGrid/><span>Макет</span></button>
-          <button onClick={()=>setMobileSheet("theme")}><Palette/><span>Тема</span></button>
-          <button onClick={()=>setMobileSheet("order")}><List/><span>Порядок</span></button>
-          <button onClick={()=>setMobileSheet("share")}><Share/><span>Скачать</span></button>
-        </nav>
-      </div>
-      <aside className="slide-rail" aria-label="Слайды карусели"><div className="slide-strip">{slides.map((slide,index)=><button draggable onDragStart={()=>setDragged(index)} onDragOver={event=>event.preventDefault()} onDrop={()=>{if(dragged===null||dragged===index)return;const next=[...slides];const [item]=next.splice(dragged,1);next.splice(index,0,item);setSlides(next);setActive(index);setDragged(null)}} onClick={()=>setActive(index)} className={active===index?"active":""} key={slide.id}><span>{index+1}</span><GripVertical/><div className="mini-slide-shell"><CarouselSlide slide={slide} theme={theme} index={index} total={slides.length} handle={handle}/></div></button>)}</div><button className="add-slide"><Plus/> Слайд</button></aside>
-      <main className="carousel-canvas">
-        {stale&&<div className="stale-banner">Сценарий обновился после сборки карусели <button onClick={rebuild}>Собрать заново</button></div>}
-        <div className="slide-stage"><button className="slide-arrow" aria-label="Предыдущий слайд" disabled={active===0} onClick={()=>setActive(i=>Math.max(0,i-1))}><ArrowLeft/></button><div className="desktop-slide-shell"><CarouselSlide slide={current} theme={theme} index={active} total={slides.length} handle={handle}/></div><button className="slide-arrow" aria-label="Следующий слайд" disabled={active===slides.length-1} onClick={()=>setActive(i=>Math.min(slides.length-1,i+1))}><ArrowRight/></button></div>
-        <div className="slide-dots" aria-label={`Слайд ${active+1} из ${slides.length}`}>{dots.map(index=><button aria-label={`Слайд ${index+1}`} className={index===active?"active":""} onClick={()=>setActive(index)} key={index}/>)}</div>
-      </main>
-      <aside className="carousel-inspector"><div className="inspector-section"><h3>Макет</h3><div className="layout-picker">{["Обложка","Мысль","Список","Шаги","Цитата","Число","Призыв"].map((name,index)=><button className={current.layout===index?"active":""} onClick={()=>update("layout",index)} key={name}><span className={`layout-schematic layout-schematic-${index}`}><i/><i/><i/><i/></span><small>{name}</small></button>)}</div></div><div className="inspector-section"><h3>Тема</h3><div className="theme-picker">{(["graphite","paper","contrast"] as ThemeName[]).map(item=><button className={theme===item?"active":""} onClick={()=>setTheme(item)} key={item}><i style={{background:carouselThemeStyles[item].background,color:carouselThemeStyles[item].text,borderColor:carouselThemeStyles[item].accent}}>Аа</i><small>{{graphite:"Графит",paper:"Бумага",contrast:"Контраст"}[item]}</small></button>)}</div></div><label className="inspector-field">Ник<input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@ник"/></label><label className="inspector-field caption-field"><span>Подпись к посту <small>{caption.length}/2200</small></span><textarea value={caption} maxLength={2200} onChange={e=>setCaption(e.target.value)}/><button onClick={()=>navigator.clipboard.writeText(caption).catch(()=>{})}><Copy/> Копировать</button></label><div className="carousel-actions"><button className="carousel-primary" onClick={exportSlides}><Download/> Скачать 7 слайдов</button><button onClick={rebuild}><RefreshCw/> Собрать заново</button></div></aside>
-    </>}
-    {mobileSheet&&<div className="carousel-sheet-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)setMobileSheet(null)}}>
-      <section className={`carousel-mobile-sheet sheet-${mobileSheet}`} role="dialog" aria-modal="true" aria-label={mobileSheet === "edit" ? fieldLabels[editingField] : undefined}>
-        <button className="carousel-sheet-grabber" aria-label="Закрыть" onClick={()=>setMobileSheet(null)}/>
-        {mobileSheet==="edit"&&<><header><h2>{fieldLabels[editingField]}</h2></header><textarea autoFocus value={String(current[editingField])} maxLength={fieldLimits[editingField]} onChange={event=>update(editingField,event.target.value)}/><div className="sheet-edit-footer"><span>{String(current[editingField]).length} / {fieldLimits[editingField]}</span><button className="carousel-primary" onClick={()=>setMobileSheet(null)}>Готово</button></div></>}
-        {mobileSheet==="layout"&&<><header><h2>Макет</h2><p>Выберите композицию слайда</p></header><div className="mobile-layout-grid">{layoutIcons.map((Icon,index)=><button className={current.layout===index?"active":""} onClick={()=>{update("layout",index);setMobileSheet(null)}} aria-label={`Макет ${index+1}`} key={index}><span className={`layout-thumb layout-${index}`}><Icon/></span><small>{index+1}</small></button>)}</div></>}
-        {mobileSheet==="theme"&&<><header><h2>Тема</h2><p>Оформление всей карусели</p></header><div className="mobile-theme-list">{(["graphite","paper","contrast"] as ThemeName[]).map((item,index)=><button className={theme===item?"active":""} onClick={()=>{setTheme(item);setMobileSheet(null)}} key={item}><i className={item}/><span>{["Графит","Бумага","Контраст"][index]}</span>{theme===item&&<Check/>}</button>)}</div></>}
-        {mobileSheet==="order"&&<><header><h2>Порядок слайдов</h2><p>Перетащите за ручку. Смахните влево, чтобы удалить.</p></header><div className="mobile-order-list">{slides.map((slide,index)=><div draggable onTouchStart={event=>{swipeStart.current=event.touches[0].clientX}} onTouchEnd={event=>{if(event.changedTouches[0].clientX-swipeStart.current < -56) removeSlide(index)}} onDragStart={()=>setDragged(index)} onDragOver={event=>event.preventDefault()} onDrop={()=>{if(dragged===null||dragged===index)return;const next=[...slides];const [item]=next.splice(dragged,1);next.splice(index,0,item);setSlides(next);setActive(index);setDragged(null)}} key={slide.id}><GripVertical/><span>{index+1}</span><div className={`order-thumb ${themeClass}`}>{slide.title}</div><button aria-label={`Удалить слайд ${index+1}`} onClick={()=>removeSlide(index)}><Trash2/></button></div>)}</div></>}
-        {mobileSheet==="share"&&<><header><h2>Поделиться</h2></header><div className="share-actions"><button onClick={()=>{exportSlides();setMobileSheet(null)}}><Download/><span>Сохранить 7 изображений</span></button><button><Camera/><span>Instagram</span></button><button><MoreHorizontal/><span>Ещё</span></button></div><div className="share-caption"><span>Подпись к посту <small>{caption.length}/2200</small></span><textarea value={caption} maxLength={2200} onChange={event=>setCaption(event.target.value)}/><button onClick={()=>navigator.clipboard.writeText(caption).catch(()=>{})}><Copy/> Копировать подпись</button></div></>}
-      </section>
-    </div>}
-    {toast&&<div className="carousel-toast" role="status"><Check/> 7 изображений 1080×1350 сохранены<button aria-label="Закрыть" onClick={()=>setToast(false)}><X/></button></div>}
+  return <section className="cs" onClick={event=>{if(event.target===event.currentTarget)resetSelection()}}>
+    <button className="cs-demo" aria-label="Состояния демо" onClick={()=>setDemo(demo==="updated"?"ready":"updated")}><Sparkles/></button>
+    <header className="cs-toolbar">
+      <div className="cs-segment"><button className={mode==="slide"?"active":""} onClick={()=>setMode("slide")}>Слайд</button><button className={mode==="overview"?"active":""} onClick={()=>setMode("overview")}>Обзор</button></div>
+      <div className="cs-pager"><button disabled={active===0} onClick={()=>setActive(active-1)}><ChevronLeft/></button><span>{active+1} / {slides.length}</span><button disabled={active===slides.length-1} onClick={()=>setActive(active+1)}><ChevronRight/></button></div>
+      <div className="cs-toolbar-actions"><button onClick={()=>setPreview(true)}><Eye/>Как в Instagram</button><button className="primary" onClick={()=>setDownload(v=>!v)}><Download/>Скачать</button></div>
+      {download&&<div className="cs-download-pop"><b>7 PNG 1080×1350 · zip</b><button><Copy/>Скопировать подпись</button><button className="primary" onClick={()=>setDownload(false)}><Download/>Скачать</button></div>}
+    </header>
+    {demo==="updated"&&<div className="cs-updated">Сценарий обновился — собрать заново?<button onClick={()=>setDemo("ready")}>Собрать</button></div>}
+
+    {mode==="slide" ? <div className="cs-workspace">
+      <aside className="cs-rail"><div>{slides.map((slide,index)=><button key={slide.id} className={index===active?"active":""} draggable onDragStart={()=>setDragged(index)} onDragOver={e=>e.preventDefault()} onDrop={()=>move(index)} onClick={()=>scrollTo(index)}><span>{index+1}</span><GripVertical/><ScaledSlide slide={slide} scale={.088} theme={theme} index={index} total={slides.length} handle={handle}/></button>)}</div><button className="cs-add"><Plus/></button></aside>
+      <main className="cs-stage" onClick={event=>{if(event.target===event.currentTarget)resetSelection()}}><div className="cs-desktop-art"><ScaledSlide slide={current} scale={.42} theme={theme} index={active} total={slides.length} handle={handle} selectedField={selectedField} onSelectField={selectField} onSelectSlide={selectSlide}/></div><div className="cs-mobile-track" ref={trackRef} onScroll={e=>{const w=(e.currentTarget.firstElementChild as HTMLElement)?.offsetWidth||1;setActive(Math.round(e.currentTarget.scrollLeft/(w+12)))}}>{slides.map((slide,index)=><div className="cs-mobile-art" key={slide.id}><ScaledSlide slide={slide} scale={.32} theme={theme} index={index} total={slides.length} handle={handle} selectedField={index===active?selectedField:null} onSelectField={selectField} onSelectSlide={selectSlide}/></div>)}</div><MobileThumbs slides={slides} active={active} theme={theme} handle={handle} onSelect={scrollTo}/></main>
+      <InspectorPanel inspector={inspector} current={current} theme={theme} setTheme={setTheme} handle={handle} setHandle={setHandle} caption={caption} setCaption={setCaption} selectedField={selectedField} setSlides={setSlides} active={active} duplicate={duplicate} remove={remove}/>
+      <nav className="cs-mobile-actions">{inspector==="slide"?<><button onClick={()=>setSheet("layout")}><LayoutGrid/>Макет</button><button onClick={duplicate}><Copy/>Дублировать</button><button onClick={remove}><Trash2/>Удалить</button><button onClick={resetSelection}><Check/>Готово</button></>:<><button onClick={()=>setSheet("theme")}><Palette/>Тема</button><button onClick={()=>setSheet("caption")}><Type/>Подпись</button><button onClick={()=>setPreview(true)}><Eye/>Instagram</button><button onClick={()=>setSheet("share")}><Share2/>Скачать</button></>}</nav>
+    </div> : <Overview slides={slides} theme={theme} handle={handle} active={active} setActive={setActive} setMode={setMode} dragged={dragged} setDragged={setDragged} move={move}/>}
+    {preview&&<InstagramPreview slides={slides} theme={theme} handle={handle} caption={caption} onClose={()=>setPreview(false)}/>}
+    {sheet&&<MobileSheet sheet={sheet} onClose={()=>setSheet(null)} current={current} theme={theme} setTheme={setTheme} caption={caption} setCaption={setCaption} setSlides={setSlides} active={active}/>}
   </section>;
 }
+
+function MobileThumbs({slides,active,theme,handle,onSelect}:{slides:CarouselSlideData[];active:number;theme:CarouselTheme;handle:string;onSelect:(i:number)=>void}){return <div className="cs-mobile-thumbs">{slides.map((slide,i)=><button className={i===active?"active":""} onClick={()=>onSelect(i)} key={slide.id}><ScaledSlide slide={slide} scale={.0326} theme={theme} index={i} total={slides.length} handle={handle}/></button>)}</div>}
+function InspectorPanel({inspector,current,theme,setTheme,handle,setHandle,caption,setCaption,selectedField,setSlides,active,duplicate,remove}:any){const update=(patch:Partial<CarouselSlideData>)=>setSlides((items:CarouselSlideData[])=>items.map((s,i)=>i===active?{...s,...patch}:s));return <aside className="cs-inspector"><div className="cs-inspector-head"><span>{inspector==="carousel"?"Карусель":inspector==="slide"?"Слайд":"Текст"}</span></div>{inspector==="carousel"?<><section><h3>Тема</h3><div className="cs-themes">{(["graphite","paper","contrast"] as CarouselTheme[]).map(t=><button className={theme===t?"active":""} onClick={()=>setTheme(t)} key={t}><i style={{background:carouselThemeStyles[t].background,color:carouselThemeStyles[t].text}}>Аа</i><span>{{graphite:"Графит",paper:"Бумага",contrast:"Контраст"}[t]}</span></button>)}</div></section><section><h3>Автор</h3><label className="cs-author"><span>А</span><input value={handle} onChange={e=>setHandle(e.target.value)}/></label><label className="cs-check"><input type="checkbox"/>Сделать по умолчанию</label></section><section><h3>Подпись к посту</h3><textarea value={caption} maxLength={2200} onChange={e=>setCaption(e.target.value)}/><small>{caption.length}/2200</small><div className="cs-chips"><button><Copy/>Копировать</button><button><Sparkles/>Переписать</button></div></section></>:inspector==="slide"?<><section><h3>Макет</h3><div className="cs-layouts">{layouts.map(l=><button className={current.layout===l.value?"active":""} onClick={()=>update({layout:l.value})} key={l.value}><i><span/><span/><span/></i><small>{l.name}</small></button>)}</div></section><section><h3>Фон</h3><div className="cs-segment wide"><button className="active">Как тема</button><button>Акцент</button></div></section><div className="cs-inspector-buttons"><button onClick={duplicate}><Copy/>Дублировать</button><button className="danger" onClick={remove}><Trash2/>Удалить</button></div></>:<TextControls value={selectedField==="body"?current.body||"":current.title} onChange={(value:string)=>update(selectedField==="body"?{body:value}:{title:value})}/>}</aside>}
+function TextControls({value,onChange}:{value:string;onChange:(v:string)=>void}){const long=value.length>60;return <section className="cs-text-controls"><h3>Текст</h3><textarea className={long?"long":""} value={value} onChange={e=>onChange(e.target.value)}/><small>{value.length}/60</small>{long&&<p>Длинно — сократить?</p>}<div className="cs-chips"><button><Sparkles/>Короче</button><button><Sparkles/>Другой вариант</button><button><Sparkles/>Проще</button></div></section>}
+function Overview({slides,theme,handle,active,setActive,setMode,dragged,setDragged,move}:any){return <main className="cs-overview"><header>{slides.length} слайдов · ~35 секунд чтения</header><div>{slides.map((slide:CarouselSlideData,index:number)=><article key={slide.id} draggable onDragStart={()=>setDragged(index)} onDragOver={e=>e.preventDefault()} onDrop={()=>move(index)} onDoubleClick={()=>{setActive(index);setMode("slide")}}><span>{index+1}</span><button className={index===active?"active":""} onClick={()=>setActive(index)}><ScaledSlide slide={slide} scale={.19} theme={theme} index={index} total={slides.length} handle={handle}/></button>{index<slides.length-1&&<ChevronRight className="cs-connector"/>}</article>)}<button className="cs-overview-add"><Plus/>Слайд</button></div></main>}
+function InstagramPreview({slides,theme,handle,caption,onClose}:{slides:CarouselSlideData[];theme:CarouselTheme;handle:string;caption:string;onClose:()=>void}){const [index,setIndex]=useState(0);return <div className="cs-modal" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section role="dialog" aria-modal="true" aria-labelledby="instagram-title" className="cs-instagram"><header><h2 id="instagram-title">Как в Instagram</h2><button onClick={onClose} aria-label="Закрыть"><X/></button></header><div className="cs-phone"><div className="ig-user"><span>А</span><b>{handle}</b><MoreHorizontal/></div><button className="ig-slide" onClick={()=>setIndex((index+1)%slides.length)}><ScaledSlide slide={slides[index]} scale={.274} theme={theme} index={index} total={slides.length} handle={handle}/></button><div className="ig-dots">{slides.map((_,i)=><i className={i===index?"active":""} key={i}/>)}</div><p><b>{handle}</b> {caption.slice(0,62)}… <span>ещё</span></p></div><div className="cs-profile"><div><b>{handle}</b><span>164 публикации</span></div><div className="profile-grid"><ScaledSlide slide={slides[0]} scale={.18} theme={theme} index={0} total={slides.length} handle={handle}/></div><p>Так обложка выглядит в профиле</p></div></section></div>}
+function MobileSheet({sheet,onClose,current,theme,setTheme,caption,setCaption,setSlides,active}:any){const update=(patch:Partial<CarouselSlideData>)=>setSlides((items:CarouselSlideData[])=>items.map((s,i)=>i===active?{...s,...patch}:s));return <div className="cs-sheet-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}><section className="cs-sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><button className="cs-grabber" onClick={onClose} aria-label="Закрыть"/><h2 id="sheet-title">{sheet==="text"?"Текст":sheet==="share"?"Поделиться":sheet==="caption"?"Подпись":sheet==="layout"?"Макет":"Тема"}</h2>{sheet==="text"&&<TextControls value={current.title} onChange={(title)=>update({title})}/>} {sheet==="theme"&&<div className="cs-sheet-list">{(["graphite","paper","contrast"] as CarouselTheme[]).map(t=><button onClick={()=>{setTheme(t);onClose()}} key={t}><i style={{background:carouselThemeStyles[t].background}}/>{{graphite:"Графит",paper:"Бумага",contrast:"Контраст"}[t]}{theme===t&&<Check/>}</button>)}</div>} {sheet==="caption"&&<textarea value={caption} onChange={e=>setCaption(e.target.value)}/>} {sheet==="layout"&&<div className="cs-sheet-layouts">{layouts.map(l=><button onClick={()=>{update({layout:l.value});onClose()}} key={l.value}><LayoutGrid/>{l.name}</button>)}</div>} {sheet==="share"&&<div className="cs-share"><button><ImageIcon/>Сохранить 7 изображений</button><button><Share2/>Instagram</button><button><MoreHorizontal/>Ещё</button></div>}</section></div>}
+function EmptyState({state,setState}:{state:DemoState;setState:(s:DemoState)=>void}){if(state==="building")return <section className="cs cs-empty"><div className="cs-skeletons">{[1,2,3].map(i=><i key={i}/>)}</div><h2>Раскладываю мысль по слайдам…</h2></section>;const copy=state==="no-script"?["Карусель собирается из сценария","К сценарию"]:state==="empty"?["Соберу 6–9 слайдов из сценария","Собрать карусель"]:["Не удалось собрать карусель","Повторить"];return <section className="cs cs-empty"><Sparkles/><h2>{copy[0]}</h2><button className="primary" onClick={()=>setState(state==="no-script"?"empty":state==="error"?"building":"ready")}>{copy[1]}</button></section>}
