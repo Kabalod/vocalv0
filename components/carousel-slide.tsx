@@ -270,17 +270,24 @@ export function CarouselSlide({
         </div>
       );
     return (
-      <button
+      <div
         key={name}
-        type="button"
+        role="button"
+        tabIndex={0}
         onClick={(event) => {
           event.stopPropagation();
           onSelectField(name);
         }}
-        style={fieldStyle}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          event.stopPropagation();
+          onSelectField(name);
+        }}
+        style={{ ...fieldStyle, cursor: "pointer" }}
       >
         {content}
-      </button>
+      </div>
     );
   };
   const placeholder = (
@@ -592,7 +599,7 @@ export function CarouselSlide({
           </div>
         )}
         {isList && !slide.items?.length &&
-          placeholder("items", "Добавьте 3 пункта")}
+          placeholder("items", "Доба��ьте 3 пункта")}
         {slide.layout === "statement" && !slide.body &&
           placeholder("body", "Добавьте поясняющий текст")}
         {slide.body &&
