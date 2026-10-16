@@ -215,8 +215,8 @@ export function CarouselSlide({
   const isList = slide.layout === "list" || slide.layout === "steps";
   const isCover = slide.layout === "cover" || isPhotoCover;
   const markTheme = {
-    markerBg: `${c.accent}59`,
-    markerText: theme === "contrast" ? "#0b0b0c" : undefined,
+    markerBg: theme === "contrast" ? "#ffe14d" : `${c.accent}59`,
+    markerText: theme === "contrast" ? "#0b0b0c" : text,
   };
   const rich = (
     value: string,
@@ -415,9 +415,20 @@ export function CarouselSlide({
           flex: 1,
           flexDirection: "column",
           justifyContent:
-            isCover || slide.layout === "split" ? "flex-end" : "flex-start",
-          paddingTop: isCover ? 600 : slide.layout === "split" ? 760 : 92,
-          paddingBottom: 76,
+            slide.layout === "cta"
+              ? "center"
+              : isCover || slide.layout === "split"
+                ? "flex-end"
+                : "flex-start",
+          paddingTop:
+            slide.layout === "cta"
+              ? 0
+              : isCover
+                ? 600
+                : slide.layout === "split"
+                  ? 760
+                  : 92,
+          paddingBottom: slide.layout === "cta" ? 0 : 76,
         }}
       >
         {slide.kicker &&
@@ -478,7 +489,7 @@ export function CarouselSlide({
             )}
           </div>
         )}
-        {slide.layout !== "photo-example" && title}
+        {slide.layout !== "photo-example" && slide.layout !== "cta" && title}
         {slide.items && isList && (
           <div
             style={{
@@ -554,14 +565,18 @@ export function CarouselSlide({
                 1.1,
               )}
             </div>
-            {rich(
-              "Напишите СТАРТ в директ",
-              40,
-              muted,
-              "Inter,-apple-system,sans-serif",
-              700,
-              1.15,
-            )}
+            {slide.body &&
+              field(
+                "body",
+                rich(
+                  slide.body,
+                  40,
+                  muted,
+                  "Inter,-apple-system,sans-serif",
+                  700,
+                  1.15,
+                ),
+              )}
           </div>
         )}
       </div>

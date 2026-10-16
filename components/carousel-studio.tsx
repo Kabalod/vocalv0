@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Bookmark,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -40,7 +41,7 @@ type Sheet = "text" | "theme" | "caption" | "layout" | "share" | null;
 const initialSlides: CarouselSlideData[] = [
   {
     id: 1,
-    layout: "cover",
+    layout: "photo-cover",
     kicker: "3 ошибки",
     title: "Почему вы *бросаете* спорт к середине февраля",
     photo: "/images/carousel-author.png",
@@ -92,7 +93,12 @@ const initialSlides: CarouselSlideData[] = [
       "После пропуска — сразу следующая",
     ],
   },
-  { id: 8, layout: "cta", title: "Сохраните, чтобы вернуться в марте" },
+  {
+    id: 8,
+    layout: "cta",
+    title: "Сохраните, чтобы вернуться в марте",
+    body: "Напишите СТАРТ в директ — пришлю план на 15 минут",
+  },
 ];
 const layouts: { name: string; value: CarouselLayout }[] = [
   { name: "Обложка", value: "cover" },
@@ -626,15 +632,6 @@ function InspectorPanel({
           </>
         )}
       </nav>
-      <div className="cs-inspector-head">
-        <span>
-          {inspector === "carousel"
-            ? "Карусель"
-            : inspector === "slide"
-              ? `Слайд ${active + 1}`
-              : fieldLabel}
-        </span>
-      </div>
       {inspector === "carousel" ? (
         <>
           <section>

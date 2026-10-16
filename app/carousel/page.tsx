@@ -4,26 +4,17 @@ import {
   type CarouselTheme,
 } from "@/components/carousel-slide"
 
-const themes: CarouselTheme[] = [
-  "editorial",
-  "swiss",
-  "film",
-  "notebook",
-  "contrast",
-]
+const themes = ["editorial", "contrast"] as const satisfies readonly CarouselTheme[]
 
-const themeNames: Record<CarouselTheme, string> = {
+const themeNames: Pick<Record<CarouselTheme, string>, "editorial" | "contrast"> = {
   editorial: "Редакция",
-  swiss: "Швейцарский",
-  film: "Плёнка",
-  notebook: "Блокнот",
   contrast: "Контраст",
 }
 
 const slides: CarouselSlideData[] = [
   {
     id: 1,
-    layout: "cover",
+    layout: "photo-cover",
     kicker: "3 ошибки",
     title: "Почему вы *бросаете* спорт к середине февраля",
     photo: "/images/carousel-author.png",
@@ -31,35 +22,44 @@ const slides: CarouselSlideData[] = [
   },
   {
     id: 2,
-    layout: "photo-cover",
-    kicker: "3 ошибки",
-    title: "Почему вы *бросаете* спорт к середине февраля",
-    photo: "/images/carousel-author.png",
+    layout: "statement",
+    title: "Дело не в *силе воли*",
+    body: "В январе мы берём план на человека, которым только хотим стать",
   },
   {
     id: 3,
+    layout: "list",
+    title: "Что ломает привычку",
+    items: [
+      "Слишком длинные тренировки",
+      "Цель на результат, а не на действие",
+      "Пропуск = провал",
+    ],
+  },
+  {
+    id: 4,
+    layout: "split",
+    kicker: "Дорога в зал",
+    title: "Начните с маршрута, который уже знаком",
+    photo: "/images/carousel-road.png",
+  },
+  {
+    id: 5,
     layout: "photo-example",
     title: "Маленький ритуал важнее идеального плана",
     photo: "/images/carousel-coffee.png",
     caption: "Маленький ритуал важнее идеального плана",
   },
   {
-    id: 4,
-    layout: "statement",
-    title: "Дело не в *силе воли*",
-    body: "В январе мы берём план на человека, которым только хотим стать.",
-  },
-  {
-    id: 5,
-    layout: "split",
-    title: "План должен работать в *плохой день*",
-    body: "Не в тот, когда много сил и времени. А в тот, когда хочется всё отменить.",
-    photo: "/images/carousel-road.png",
-  },
-  {
     id: 6,
+    layout: "number",
+    value: "15 минут",
+    title: "Хватит, чтобы не выпасть из ритма в плохой день",
+  },
+  {
+    id: 7,
     layout: "steps",
-    title: "Три шага вместо нового старта",
+    title: "Как перезапуститься",
     items: [
       "Сократите план вдвое",
       "Отмечайте факт, а не вес",
@@ -67,11 +67,10 @@ const slides: CarouselSlideData[] = [
     ],
   },
   {
-    id: 7,
+    id: 8,
     layout: "cta",
-    title: "Сохраните, чтобы вернуться",
-    body: "и напишите в директ слово «СТАРТ» — пришлю план на 15 минут",
-    kicker: "Начните с малого",
+    title: "Сохраните, чтобы вернуться в марте",
+    body: "Напишите СТАРТ в директ — пришлю план на 15 минут",
   },
 ]
 
@@ -106,10 +105,10 @@ export default function CarouselGalleryPage() {
           Vocal · Instagram
         </span>
         <h1 style={{ margin: 0, fontSize: 38, lineHeight: 1.1 }}>
-          Компоненты карусели
+          Обзор карусели
         </h1>
         <p style={{ margin: 0, color: "#94919d", fontSize: 16 }}>
-          7 слайдов × 5 стилей · артборд 1080 × 1350 px
+          8 слайдов × 2 стиля · артборд 1080 × 1350 px
         </p>
       </header>
       <section
@@ -163,14 +162,14 @@ export default function CarouselGalleryPage() {
                       <CarouselSlide
                         slide={slide}
                         theme={theme}
-                        index={index + 1}
+                        index={index}
                         total={slides.length}
                         handle="@anna.move"
                       />
                     </div>
                   </div>
                   <figcaption style={{ color: "#77737e", fontSize: 13 }}>
-                    {index + 1}/7 · {slide.layout}
+                    {index + 1}/8 · {slide.layout}
                   </figcaption>
                 </figure>
               ))}
