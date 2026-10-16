@@ -1,66 +1,820 @@
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { Bookmark, ImagePlus } from "lucide-react";
 
-export type CarouselTheme = "editorial" | "swiss" | "film" | "notebook" | "contrast";
-export type CarouselLayout = "cover" | "photo-cover" | "statement" | "list" | "steps" | "quote" | "number" | "split" | "photo-example" | "cta";
-export type CarouselSlideData = { id: number; layout: CarouselLayout; kicker?: string; title: string; body?: string; items?: string[]; value?: string; image?: string };
-
-type ThemeStyle = { background: string; text: string; muted: string; accent: string; heading: string; weight: number; mono?: boolean; lined?: boolean };
-export const carouselThemeStyles: Record<CarouselTheme, ThemeStyle> = {
-  editorial: { background: "#131315", text: "#f4f2f7", muted: "#aaa6b1", accent: "#a28bfb", heading: "Literata,Georgia,serif", weight: 700 },
-  swiss: { background: "#f2f2f0", text: "#111111", muted: "#5a5a58", accent: "#ff4d2e", heading: "Inter,-apple-system,sans-serif", weight: 800 },
-  film: { background: "#1a1712", text: "#efe6d6", muted: "#a99c88", accent: "#e8b04b", heading: "Literata,Georgia,serif", weight: 700, mono: true },
-  notebook: { background: "#f3eee4", text: "#1a1424", muted: "#6d6573", accent: "#7154d9", heading: "Literata,Georgia,serif", weight: 700, lined: true },
-  contrast: { background: "#0b0b0c", text: "#ffffff", muted: "#a8a8ad", accent: "#ffe14d", heading: "Inter,-apple-system,sans-serif", weight: 900 },
+export type CarouselTheme =
+  "editorial" | "swiss" | "film" | "notebook" | "contrast";
+export type CarouselLayout =
+  | "cover"
+  | "photo-cover"
+  | "statement"
+  | "list"
+  | "steps"
+  | "quote"
+  | "number"
+  | "split"
+  | "photo-example"
+  | "cta";
+export type MarkStyle = "fill" | "underline" | "color";
+export type SlideBackground = "theme" | "accent" | "photo";
+export type CarouselSlideData = {
+  id: number;
+  layout: CarouselLayout;
+  kicker?: string;
+  title: string;
+  body?: string;
+  items?: string[];
+  value?: string;
+  photo?: string;
+  photoSource?: string;
+  caption?: string;
+  background?: SlideBackground;
 };
 
-const photoByLayout: Partial<Record<CarouselLayout, string>> = { "photo-cover": "/images/carousel-author.png", split: "/images/carousel-road.png", "photo-example": "/images/carousel-coffee.png" };
+type ThemeStyle = {
+  background: string;
+  text: string;
+  muted: string;
+  accent: string;
+  heading: string;
+  weight: number;
+  mono?: boolean;
+  lined?: boolean;
+};
+type MarkTheme = { markerBg: string; markerText?: string; accent: string; markStyle: MarkStyle };
 
-function marked(text: string, accent: string, notebook = false): ReactNode[] {
-  return text.split(/(\*[^*]+\*)/g).filter(Boolean).map((part, index) => part.startsWith("*") ? <span key={index} style={{ display: "inline", padding: "0 8px", borderRadius: 8, background: `${accent}59`, fontFamily: notebook ? "Caveat,cursive" : "inherit" }}>{part.slice(1, -1)}</span> : <Fragment key={index}>{part}</Fragment>);
+export const carouselThemeStyles: Record<CarouselTheme, ThemeStyle> = {
+  editorial: {
+    background: "#131315",
+    text: "#f4f2f7",
+    muted: "#aaa6b1",
+    accent: "#a28bfb",
+    heading: "Literata,Georgia,serif",
+    weight: 700,
+  },
+  swiss: {
+    background: "#f2f2f0",
+    text: "#111111",
+    muted: "#5a5a58",
+    accent: "#ff4d2e",
+    heading: "Inter,-apple-system,sans-serif",
+    weight: 800,
+  },
+  film: {
+    background: "#1a1712",
+    text: "#efe6d6",
+    muted: "#a99c88",
+    accent: "#e8b04b",
+    heading: "Literata,Georgia,serif",
+    weight: 700,
+    mono: true,
+  },
+  notebook: {
+    background: "#f3eee4",
+    text: "#1a1424",
+    muted: "#6d6573",
+    accent: "#7154d9",
+    heading: "Literata,Georgia,serif",
+    weight: 700,
+    lined: true,
+  },
+  contrast: {
+    background: "#0b0b0c",
+    text: "#ffffff",
+    muted: "#a8a8ad",
+    accent: "#ffe14d",
+    heading: "Inter,-apple-system,sans-serif",
+    weight: 900,
+  },
+};
+
+function getContrastText(hex: string) {
+  const value = hex.replace("#", "");
+  const rgb = [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16) / 255);
+  const luminance = rgb.map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+  return (luminance + 0.05) / 0.05 >= 4.5 ? "#0b0b0c" : "#ffffff";
 }
+
+const NBSP = "\u00A0";
+const SHORT =
+  /(^|[ \n])(в|и|к|с|о|у|а|я|на|не|по|за|из|от|до|без|для|что|как)[ \n]+/gi;
+
+export function RichText(props: {
+  text: string;
+  size: number;
+  color: string;
+  family: string;
+  weight?: number;
+  lineHeight?: number;
+  maxWidth?: number;
+  theme: MarkTheme;
+}) {
+  const {
+    text,
+    size,
+    color,
+    family,
+    weight = 700,
+    lineHeight = 1.08,
+    maxWidth,
+    theme,
+  } = props;
+  const prepared = text.replace(SHORT, (_m, a, w) => `${a}${w}${NBSP}`);
+  const tokens: { w: string; mark: boolean }[] = [];
+  prepared.split(/(\*[^*]+\*)/g).forEach((part) => {
+    if (!part) return;
+    const mark = part.startsWith("*") && part.endsWith("*");
+    const clean = mark ? part.slice(1, -1) : part;
+    clean
+      .split(/[ \t\n]+/)
+      .filter(Boolean)
+      .forEach((w) => tokens.push({ w, mark }));
+  });
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        flexWrap: "wrap",
+        alignItems: "baseline",
+        maxWidth,
+        fontFamily: family,
+        fontSize: size,
+        fontWeight: weight,
+        lineHeight,
+        color,
+      }}
+    >
+      {tokens.map((t, i) => (
+        <span
+          key={i}
+          style={{
+            display: "flex",
+            marginRight: size * 0.26,
+            paddingLeft: t.mark ? size * 0.1 : 0,
+            paddingRight: t.mark ? size * 0.1 : 0,
+            marginLeft: t.mark ? -size * 0.05 : 0,
+            backgroundColor: t.mark && theme.markStyle === "fill" ? theme.markerBg : "transparent",
+            color: t.mark && theme.markStyle === "color" ? theme.accent : t.mark && theme.markerText ? theme.markerText : color,
+            borderRadius: t.mark && theme.markStyle === "fill" ? size * 0.08 : 0,
+            backgroundImage: t.mark && theme.markStyle === "underline" ? `linear-gradient(${theme.accent},${theme.accent})` : undefined,
+            backgroundPosition: t.mark && theme.markStyle === "underline" ? "0 calc(100% - .05em)" : undefined,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: t.mark && theme.markStyle === "underline" ? "100% .18em" : undefined,
+          }}
+        >
+          {t.w}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+const photoByLayout: Partial<Record<CarouselLayout, string>> = {
+  "photo-cover": "/images/carousel-author.png",
+  split: "/images/carousel-road.png",
+  "photo-example": "/images/carousel-coffee.png",
+};
 
 function titleSize(slide: CarouselSlideData, theme: CarouselTheme) {
-  if (theme === "swiss" && (slide.layout === "cover" || slide.layout === "photo-cover")) return 140;
   const length = slide.title.replaceAll("*", "").length;
-  if (slide.layout === "cover" || slide.layout === "photo-cover") return length <= 45 ? 104 : 86;
-  if (slide.layout === "statement") return length <= 35 ? 96 : 78;
-  if (slide.layout === "cta") return 76;
-  return length > 70 ? 60 : 72;
+  if (slide.layout === "cover" || slide.layout === "photo-cover") {
+    if (theme === "swiss")
+      return length > 58 ? 84 : length > 48 ? 92 : length > 38 ? 108 : 124;
+    return length > 65 ? 68 : length > 55 ? 76 : length > 42 ? 86 : 104;
+  }
+  if (slide.layout === "statement")
+    return length > 62 ? 60 : length > 52 ? 68 : length > 35 ? 78 : 96;
+  if (slide.layout === "cta") return length > 58 ? 68 : length > 44 ? 76 : 84;
+  return length > 80 ? 54 : length > 70 ? 60 : 72;
 }
 
-export function CarouselSlide({ slide, theme, index, total, handle, selectedField, onSelectField, onSelectSlide, safeZone = false }: { slide: CarouselSlideData; theme: CarouselTheme; index: number; total: number; handle: string; selectedField?: string | null; onSelectField?: (field: string) => void; onSelectSlide?: () => void; safeZone?: boolean }) {
+export function CarouselSlide({
+  slide,
+  theme,
+  index,
+  total,
+  handle,
+  selectedField,
+  onSelectField,
+  onSelectSlide,
+  onFillField,
+  showPlaceholders = false,
+  safeZone = false,
+  accent,
+  markStyle = "fill",
+  onChoosePhoto,
+}: {
+  slide: CarouselSlideData;
+  theme: CarouselTheme;
+  index: number;
+  total: number;
+  handle: string;
+  selectedField?: string | null;
+  onSelectField?: (field: string) => void;
+  onSelectSlide?: () => void;
+  onFillField?: (field: "body" | "items" | "value") => void;
+  showPlaceholders?: boolean;
+  safeZone?: boolean;
+  accent?: string;
+  markStyle?: MarkStyle;
+  onChoosePhoto?: () => void;
+}) {
   const c = carouselThemeStyles[theme];
-  const accentSlide = slide.layout === "number" || slide.layout === "cta";
-  const text = accentSlide ? (theme === "contrast" ? "#0b0b0c" : "#ffffff") : c.text;
-  const muted = accentSlide ? (theme === "contrast" ? "rgba(0,0,0,.62)" : "rgba(255,255,255,.72)") : c.muted;
-  const image = slide.image || photoByLayout[slide.layout];
+  const activeAccent = accent || c.accent;
+  const accentSlide = slide.background === "accent" || (slide.background !== "theme" && (slide.layout === "number" || slide.layout === "cta"));
+  const photo = slide.photo === "" ? undefined : slide.photo || photoByLayout[slide.layout];
+  const photoBackground = slide.background === "photo";
   const isPhotoCover = slide.layout === "photo-cover";
-  const field = (name: string, content: ReactNode, style: CSSProperties) => {
-    const fieldStyle: CSSProperties = { display: "flex", padding: 12, margin: -12, border: selectedField === name ? `3px solid ${c.accent}` : "3px solid transparent", borderRadius: 18, background: selectedField === name ? `${c.accent}18` : "transparent", color: "inherit", textAlign: "left", ...style };
-    if (!onSelectField) return <div key={name} style={fieldStyle}>{content}</div>;
-    return <button key={name} type="button" onClick={(event) => { event.stopPropagation(); onSelectField(name); }} style={fieldStyle}>{content}</button>;
+  const text = isPhotoCover || photoBackground
+    ? "#ffffff"
+    : accentSlide
+      ? getContrastText(activeAccent)
+      : c.text;
+  const muted = isPhotoCover || photoBackground
+    ? "rgba(255,255,255,.8)"
+    : accentSlide
+      ? text === "#0b0b0c" ? "rgba(11,11,12,.74)" : "rgba(255,255,255,.8)"
+      : c.muted;
+  const isList = slide.layout === "list" || slide.layout === "steps";
+  const isCover = slide.layout === "cover" || isPhotoCover;
+  const accentText = getContrastText(activeAccent);
+  const markTheme = accentSlide
+    ? { markerBg: text, markerText: activeAccent, accent: activeAccent, markStyle }
+    : {
+        markerBg: theme === "contrast" || isPhotoCover || photoBackground ? activeAccent : `${activeAccent}59`,
+        markerText: theme === "contrast" || isPhotoCover || photoBackground ? accentText : text,
+        accent: activeAccent,
+        markStyle,
+      };
+  const rich = (
+    value: string,
+    size: number,
+    color = text,
+    family = c.heading,
+    weight = c.weight,
+    lineHeight = 1.08,
+    maxWidth = 904,
+  ) => (
+    <RichText
+      text={value}
+      size={size}
+      color={color}
+      family={family}
+      weight={weight}
+      lineHeight={lineHeight}
+      maxWidth={maxWidth}
+      theme={markTheme}
+    />
+  );
+  const field = (
+    name: string,
+    content: ReactNode,
+    style: CSSProperties = {},
+  ) => {
+    const fieldStyle: CSSProperties = {
+      display: "flex",
+      padding: 12,
+      margin: -12,
+      border:
+        selectedField === name
+          ? `3px solid ${activeAccent}`
+          : "3px solid transparent",
+      borderRadius: 18,
+      background: selectedField === name ? `${activeAccent}18` : "transparent",
+      color: "inherit",
+      textAlign: "left",
+      ...style,
+    };
+    if (!onSelectField)
+      return (
+        <div key={name} style={fieldStyle}>
+          {content}
+        </div>
+      );
+    return (
+      <div
+        key={name}
+        role="button"
+        tabIndex={0}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectField(name);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          event.stopPropagation();
+          onSelectField(name);
+        }}
+        style={{ ...fieldStyle, cursor: "pointer" }}
+      >
+        {content}
+      </div>
+    );
   };
-  const progress = <div style={{ position: "absolute", top: 42, left: 88, right: 88, display: "flex", gap: 8 }}>{Array.from({ length: total }, (_, i) => <i key={i} style={{ display: "flex", height: 6, flex: 1, borderRadius: 3, background: i < index ? `${text}e6` : i === index ? c.accent : `${text}40` }}/>)}</div>;
-  const baseBackground = accentSlide ? c.accent : c.lined ? `repeating-linear-gradient(to bottom,#f3eee4 0,#f3eee4 63px,rgba(0,0,0,.06) 64px)` : c.background;
-  const title = field("title", marked(slide.title, c.accent, theme === "notebook"), { maxWidth: 900, fontFamily: c.heading, fontSize: titleSize(slide, theme), fontWeight: c.weight, lineHeight: 1.03, letterSpacing: -2 });
-  return <div onClick={onSelectSlide} style={{ position: "relative", display: "flex", width: 1080, height: 1350, flexDirection: "column", padding: 88, overflow: "hidden", background: baseBackground, color: text, fontFamily: "Inter,-apple-system,BlinkMacSystemFont,sans-serif", boxSizing: "border-box" }}>
-    {isPhotoCover && image && <img src={image} alt="" style={{ position: "absolute", display: "flex", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}/>} 
-    {isPhotoCover && <div style={{ position: "absolute", display: "flex", inset: 0, background: "linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.4) 34%,rgba(0,0,0,0) 60%)" }}/>} 
-    {theme === "film" && <div style={{ position: "absolute", display: "flex", inset: 0, opacity: .08, pointerEvents: "none", background: "repeating-radial-gradient(circle at 20% 30%,#fff 0 1px,transparent 1px 4px)" }}/>} 
-    {progress}
-    {theme === "swiss" && <span style={{ position: "absolute", display: "flex", right: 22, top: 72, color: `${c.accent}30`, fontSize: 200, fontWeight: 900, lineHeight: 1 }}>{String(index + 1).padStart(2, "0")}</span>}
-    {slide.layout === "split" && image && <img src={image} alt="Дорога в зал" style={{ position: "absolute", display: "flex", top: 0, left: 0, width: "100%", height: "55%", objectFit: "cover" }}/>} 
-    <div style={{ position: "relative", display: "flex", flex: 1, flexDirection: "column", justifyContent: slide.layout === "split" ? "flex-end" : isPhotoCover ? "flex-end" : "space-between", paddingTop: isPhotoCover ? 600 : slide.layout === "split" ? 760 : 92, paddingBottom: 76 }}>
-      {(slide.kicker || isPhotoCover) && field("kicker", slide.kicker || "ПРИВЫЧКА И МОТИВАЦИЯ", { color: isPhotoCover ? "#fff" : accentSlide ? text : c.accent, fontFamily: theme === "film" ? "ui-monospace,monospace" : "inherit", fontSize: theme === "film" ? 28 : 32, fontWeight: 750, lineHeight: 1.1, letterSpacing: 2, textTransform: "uppercase" })}
-      {slide.layout === "number" && field("value", slide.value, { color: text, fontFamily: c.heading, fontSize: 210, fontWeight: c.weight, lineHeight: .9 })}
-      {slide.layout === "photo-example" && image && <div style={{ display: "flex", flexDirection: "column", alignItems: "center", transform: "rotate(-2deg)", padding: 24, paddingBottom: 40, background: "#faf7f0", boxShadow: "0 24px 60px rgba(0,0,0,.3)" }}><img src={image} alt="Кофе на подоконнике" style={{ display: "flex", width: 720, height: 690, objectFit: "cover" }}/><span style={{ display: "flex", marginTop: 26, color: "#251f1c", fontFamily: "Literata,Georgia,serif", fontSize: 34 }}>Маленький ритуал важнее идеального плана</span></div>}
-      {slide.layout !== "photo-example" && title}
-      {slide.items && <div style={{ display: "flex", minHeight: 470, flexDirection: "column", justifyContent: "space-between", marginTop: 26 }}>{slide.items.map((item, itemIndex) => field(`item-${itemIndex}`, <><span style={{ display: "flex", width: 58, flex: "0 0 58px", color: accentSlide ? text : c.accent }}>{slide.layout === "steps" ? String(itemIndex + 1).padStart(2, "0") : "•"}</span><span>{marked(item, c.accent, theme === "notebook")}</span></>, { alignItems: "flex-start", fontSize: 46, fontWeight: 560, lineHeight: 1.22 }))}</div>}
-      {slide.body && slide.layout !== "cta" && field("body", marked(slide.body, c.accent, theme === "notebook"), { maxWidth: 870, color: muted, fontSize: 42, fontWeight: 500, lineHeight: 1.32 })}
-      {slide.layout === "cta" && <div style={{ display: "flex", flexDirection: "column", gap: 34 }}><span style={{ display: "flex", width: 160, height: 180, alignItems: "center", justifyContent: "center", fontSize: 160, fontWeight: 200, lineHeight: 1 }}>♡</span>{title}<div style={{ display: "flex", alignItems: "center", gap: 28 }}><img src="/images/carousel-author.png" alt="Анна" style={{ display: "flex", width: 120, height: 120, borderRadius: 60, objectFit: "cover" }}/><b style={{ display: "flex", fontSize: 44 }}>{handle}</b></div><span style={{ display: "flex", color: muted, fontSize: 38 }}>Напишите СТАРТ в директ</span></div>}
+  const placeholder = (
+    name: "body" | "items" | "value",
+    hint: string,
+  ) => {
+    if (!showPlaceholders) return null;
+    return field(
+      name,
+      <div
+        style={{
+          display: "flex",
+          minHeight: name === "items" ? 310 : 210,
+          width: "100%",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 28,
+          border: `3px dashed ${text}4d`,
+          borderRadius: 16,
+          boxSizing: "border-box",
+        }}
+      >
+        <span
+          style={{
+            maxWidth: 760,
+            color: `${text}80`,
+            fontSize: 36,
+            fontWeight: 650,
+            lineHeight: 1.18,
+            textAlign: "center",
+          }}
+        >
+          {hint}
+        </span>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onFillField?.(name);
+          }}
+          style={{
+            padding: "18px 30px",
+            border: 0,
+            borderRadius: 999,
+            background: text,
+            color: baseBackground,
+            fontSize: 28,
+            fontWeight: 750,
+          }}
+        >
+          ✦ Заполнить из сценария
+        </button>
+      </div>,
+      { width: "100%", marginTop: 48 },
+    );
+  };
+  const photoPlaceholder = (
+    <button
+      type="button"
+      onClick={(event) => { event.stopPropagation(); onChoosePhoto?.(); }}
+      style={{ display: "flex", width: "100%", minHeight: 520, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, border: `3px dashed ${text}55`, borderRadius: 22, background: `${activeAccent}12`, color: text }}
+    >
+      <ImagePlus aria-hidden="true" style={{ width: 72, height: 72 }} />
+      <strong style={{ fontSize: 36 }}>Перетащите фото или выберите</strong>
+      <span style={{ display: "flex", gap: 16 }}>
+        {["/images/carousel-author.png", "/images/carousel-road.png", "/images/carousel-coffee.png"].map((src) => (
+          <span key={src} style={{ position: "relative", width: 120, height: 96, overflow: "hidden", borderRadius: 12 }}>
+            <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <small style={{ position: "absolute", left: 6, bottom: 6, padding: "4px 7px", borderRadius: 999, background: "rgba(11,11,12,.78)", color: "white", fontSize: 15 }}>✦ Подходит</small>
+          </span>
+        ))}
+      </span>
+    </button>
+  );
+  const grain =
+    theme === "film" ? (
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: "url('/images/film-noise.png')",
+          backgroundRepeat: "repeat",
+          backgroundSize: "256px 256px",
+          opacity: 0.06,
+          pointerEvents: "none",
+        }}
+      />
+    ) : null;
+  const progress = (
+    <div
+      style={{
+        position: "absolute",
+        top: 42,
+        left: 88,
+        right: 88,
+        display: "flex",
+        gap: 8,
+      }}
+    >
+      {Array.from({ length: total }, (_, i) => (
+        <i
+          key={i}
+          style={{
+            display: "flex",
+            height: 6,
+            flex: 1,
+            borderRadius: 3,
+            background: accentSlide
+              ? i <= index
+                ? `${text}e6`
+                : `${text}40`
+              : i < index
+                ? `${text}e6`
+                : i === index
+                  ? activeAccent
+                  : `${text}40`,
+          }}
+        />
+      ))}
     </div>
-    {(slide.layout === "cover" || slide.layout === "photo-cover") && <><div style={{ position: "absolute", display: "flex", right: 0, top: 170, width: 120, height: 720, overflow: "hidden", borderRadius: "24px 0 0 24px" }}><img src="/images/carousel-road.png" alt="Следующий слайд" style={{ display: "flex", width: "100%", height: "100%", objectFit: "cover" }}/></div><div style={{ position: "absolute", display: "flex", right: 88, bottom: 74, alignItems: "flex-end", gap: 20, color: c.accent }}><span style={{ display: "flex", fontSize: 32 }}>листай</span><span style={{ display: "flex", fontSize: 96, lineHeight: .75 }}>→</span></div></>}
-    {!isPhotoCover && slide.layout !== "cta" && <div style={{ position: "absolute", left: 88, bottom: 62, display: "flex", alignItems: "center", gap: 16, color: muted, fontSize: 26 }}><img src="/images/carousel-author.png" alt="" style={{ display: "flex", width: 52, height: 52, borderRadius: 26, objectFit: "cover" }}/>{handle}</div>}
-    {safeZone && (slide.layout === "cover" || slide.layout === "photo-cover") && <><div style={{ position: "absolute", display: "flex", left: 60, top: 75, width: 960, height: 1200, border: "4px dashed rgba(255,255,255,.9)", boxSizing: "border-box", pointerEvents: "none" }}/><div style={{ position: "absolute", display: "flex", left: 0, right: 0, top: 0, height: 75, background: "rgba(0,0,0,.38)", pointerEvents: "none" }}/><div style={{ position: "absolute", display: "flex", left: 0, right: 0, bottom: 0, height: 75, background: "rgba(0,0,0,.38)", pointerEvents: "none" }}/></>}
-  </div>;
+  );
+  const baseBackground = accentSlide
+    ? activeAccent
+    : c.lined
+      ? "repeating-linear-gradient(to bottom,#f3eee4 0,#f3eee4 63px,rgba(0,0,0,.06) 64px)"
+      : c.background;
+  const title = field(
+    "title",
+    rich(
+      slide.title,
+      titleSize(slide, theme),
+      text,
+      c.heading,
+      c.weight,
+      1.03,
+      isCover ? 792 : 904,
+    ),
+  );
+
+  return (
+    <div
+      onClick={onSelectSlide}
+      style={{
+        position: "relative",
+        display: "flex",
+        width: 1080,
+        height: 1350,
+        flexDirection: "column",
+        padding: 88,
+        overflow: "hidden",
+        background: baseBackground,
+        color: text,
+        fontFamily: "Inter,-apple-system,BlinkMacSystemFont,sans-serif",
+        boxSizing: "border-box",
+      }}
+    >
+      {(isPhotoCover || photoBackground) && photo && (
+        <div style={{ position: "absolute", inset: 0 }}>
+          <img
+            src={photo}
+            alt=""
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          {grain}
+        </div>
+      )}
+      {(isPhotoCover || photoBackground) && photo && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.75) 28%,rgba(0,0,0,0) 60%)",
+          }}
+        />
+      )}
+      {progress}
+      {(isPhotoCover || photoBackground) && !photo && (
+        <div style={{ position: "absolute", inset: 88, display: "flex", alignItems: "center", zIndex: 2 }}>{photoPlaceholder}</div>
+      )}
+      {theme === "swiss" && !isPhotoCover && slide.layout !== "split" && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            right: 22,
+            top: 72,
+            color: `${c.accent}30`,
+            fontSize: 200,
+            fontWeight: 900,
+            lineHeight: 1,
+          }}
+        >
+          {String(index + 1).padStart(2, "0")}
+        </span>
+      )}
+      {slide.layout === "split" && photo && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "55%",
+          }}
+        >
+          <img
+            src={photo}
+            alt="Дорога в зал"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          {grain}
+        </div>
+      )}
+      <div
+        style={{
+          position: "relative",
+          display: "flex",
+          flex: 1,
+          flexDirection: "column",
+          justifyContent:
+            slide.layout === "cta"
+              ? "center"
+              : isCover || slide.layout === "split"
+                ? "flex-end"
+                : "flex-start",
+          paddingTop:
+            slide.layout === "cta"
+              ? 0
+              : isCover
+                ? 600
+                : slide.layout === "split"
+                  ? 760
+                  : 92,
+          paddingBottom: slide.layout === "cta" ? 0 : 76,
+        }}
+      >
+        {slide.kicker &&
+          field(
+            "kicker",
+            rich(
+              slide.kicker,
+              theme === "film" ? 28 : 32,
+              isPhotoCover ? "#fff" : accentSlide ? text : activeAccent,
+              theme === "film"
+                ? "ui-monospace,monospace"
+                : "Inter,-apple-system,sans-serif",
+              750,
+              1.1,
+            ),
+            { marginBottom: 38, textTransform: "uppercase" },
+          )}
+        {slide.layout === "number" &&
+          slide.value &&
+          field(
+            "value",
+            rich(slide.value, 210, text, c.heading, c.weight, 0.9),
+            { marginBottom: 54 },
+          )}
+        {slide.layout === "photo-example" && !photo && photoPlaceholder}
+        {slide.layout === "split" && !photo && photoPlaceholder}
+        {slide.layout === "photo-example" && photo && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              transform: "rotate(-2deg)",
+              padding: 24,
+              paddingBottom: 40,
+              background: "#faf7f0",
+              boxShadow: "0 24px 60px rgba(0,0,0,.3)",
+            }}
+          >
+            <div style={{ position: "relative", width: 720, height: 690 }}>
+              <img
+                src={photo}
+                alt="Кофе на подоконнике"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+              {grain}
+            </div>
+            {field(
+              "caption",
+              rich(
+                slide.caption || slide.title,
+                34,
+                "#251f1c",
+                "Literata,Georgia,serif",
+                700,
+                1.12,
+                720,
+              ),
+              { marginTop: 26 },
+            )}
+          </div>
+        )}
+        {slide.layout !== "photo-example" && slide.layout !== "cta" && title}
+        {slide.layout === "number" && !slide.value &&
+          placeholder("value", "Добавьте число или короткую фразу")}
+        {slide.items && isList && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 30,
+              marginTop: 48,
+            }}
+          >
+            {slide.items.map((item, itemIndex) =>
+              field(
+                `item-${itemIndex}`,
+                <>
+                  <div style={{ flex: "0 0 58px" }}>
+                    {rich(
+                      slide.layout === "steps" ? String(itemIndex + 1) : "•",
+                      46,
+                      accentSlide ? text : activeAccent,
+                      c.heading,
+                      700,
+                      1.22,
+                      58,
+                    )}
+                  </div>
+                  {rich(item, 46, text, c.heading, 560, 1.22, 820)}
+                </>,
+                { alignItems: "flex-start", maxWidth: 904 },
+              ),
+            )}
+          </div>
+        )}
+        {isList && !slide.items?.length &&
+          placeholder("items", "Доба��ьте 3 пункта")}
+        {slide.layout === "statement" && !slide.body &&
+          placeholder("body", "Добавьте поясняющий текст")}
+        {slide.body &&
+          slide.layout !== "cta" &&
+          field(
+            "body",
+            rich(
+              slide.body,
+              slide.layout === "statement" ? 44 : 42,
+              muted,
+              "Inter,-apple-system,sans-serif",
+              500,
+              1.32,
+            ),
+            {
+              marginTop:
+                slide.layout === "statement" ? 40 : isList ? 48 : "auto",
+            },
+          )}
+        {slide.layout === "cta" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 34 }}>
+            <Bookmark
+              aria-hidden="true"
+              style={{ width: 160, height: 160, strokeWidth: 1.5 }}
+            />
+            {title}
+            <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+              <img
+                src="/images/carousel-author.png"
+                alt="Анна"
+                style={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  objectFit: "cover",
+                }}
+              />
+              {rich(
+                handle,
+                44,
+                text,
+                "Inter,-apple-system,sans-serif",
+                700,
+                1.1,
+              )}
+            </div>
+            {slide.body &&
+              field(
+                "body",
+                rich(
+                  slide.body,
+                  40,
+                  muted,
+                  "Inter,-apple-system,sans-serif",
+                  700,
+                  1.15,
+                ),
+              )}
+          </div>
+        )}
+      </div>
+      {isCover && (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 170,
+              width: 140,
+              height: 720,
+              overflow: "hidden",
+              borderRadius: "24px 0 0 24px",
+              boxShadow: "-18px 18px 44px rgba(0,0,0,.42)",
+            }}
+          >
+            <img
+              src="/images/carousel-road.png"
+              alt="Следующий слайд"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+            {theme === "film" && grain}
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              right: 88,
+              bottom: 74,
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 20,
+              color: activeAccent,
+            }}
+          >
+            {rich(
+              "листай",
+              32,
+              c.accent,
+              "Inter,-apple-system,sans-serif",
+              700,
+              1,
+            )}
+            <span aria-hidden="true" style={{ fontSize: 96, lineHeight: 0.75 }}>
+              →
+            </span>
+          </div>
+        </>
+      )}
+      {!isPhotoCover && slide.layout !== "cta" && (
+        <div
+          style={{
+            position: "absolute",
+            left: 88,
+            bottom: 62,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            color: muted,
+          }}
+        >
+          <img
+            src="/images/carousel-author.png"
+            alt=""
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              objectFit: "cover",
+            }}
+          />
+          {rich(handle, 26, muted, "Inter,-apple-system,sans-serif", 700, 1)}
+        </div>
+      )}
+      {safeZone && isCover && (
+        <>
+          <div
+            style={{
+              position: "absolute",
+              left: 60,
+              top: 75,
+              width: 960,
+              height: 1200,
+              border: "4px dashed rgba(255,255,255,.9)",
+              boxSizing: "border-box",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 75,
+              background: "rgba(0,0,0,.38)",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 75,
+              background: "rgba(0,0,0,.38)",
+              pointerEvents: "none",
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
 }
