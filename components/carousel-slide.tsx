@@ -37,8 +37,8 @@ export function CarouselSlide({ slide, theme, index, total, handle, selectedFiel
   const isPhotoCover = slide.layout === "photo-cover";
   const field = (name: string, content: ReactNode, style: CSSProperties) => {
     const fieldStyle: CSSProperties = { display: "flex", padding: 12, margin: -12, border: selectedField === name ? `3px solid ${c.accent}` : "3px solid transparent", borderRadius: 18, background: selectedField === name ? `${c.accent}18` : "transparent", color: "inherit", textAlign: "left", ...style };
-    if (!onSelectField) return <div style={fieldStyle}>{content}</div>;
-    return <button type="button" onClick={(event) => { event.stopPropagation(); onSelectField(name); }} style={fieldStyle}>{content}</button>;
+    if (!onSelectField) return <div key={name} style={fieldStyle}>{content}</div>;
+    return <button key={name} type="button" onClick={(event) => { event.stopPropagation(); onSelectField(name); }} style={fieldStyle}>{content}</button>;
   };
   const progress = <div style={{ position: "absolute", top: 42, left: 88, right: 88, display: "flex", gap: 8 }}>{Array.from({ length: total }, (_, i) => <i key={i} style={{ display: "flex", height: 6, flex: 1, borderRadius: 3, background: i < index ? `${text}e6` : i === index ? c.accent : `${text}40` }}/>)}</div>;
   const baseBackground = accentSlide ? c.accent : c.lined ? `repeating-linear-gradient(to bottom,#f3eee4 0,#f3eee4 63px,rgba(0,0,0,.06) 64px)` : c.background;
