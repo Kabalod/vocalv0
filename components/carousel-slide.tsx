@@ -182,6 +182,8 @@ export function CarouselSlide({
   selectedField,
   onSelectField,
   onSelectSlide,
+  onFillField,
+  showPlaceholders = false,
   safeZone = false,
 }: {
   slide: CarouselSlideData;
@@ -192,6 +194,8 @@ export function CarouselSlide({
   selectedField?: string | null;
   onSelectField?: (field: string) => void;
   onSelectSlide?: () => void;
+  onFillField?: (field: "body" | "items" | "value") => void;
+  showPlaceholders?: boolean;
   safeZone?: boolean;
 }) {
   const c = carouselThemeStyles[theme];
@@ -214,10 +218,12 @@ export function CarouselSlide({
       : c.muted;
   const isList = slide.layout === "list" || slide.layout === "steps";
   const isCover = slide.layout === "cover" || isPhotoCover;
-  const markTheme = {
-    markerBg: theme === "contrast" ? "#ffe14d" : `${c.accent}59`,
-    markerText: theme === "contrast" ? "#0b0b0c" : text,
-  };
+  const markTheme = accentSlide
+    ? { markerBg: text, markerText: c.accent }
+    : {
+        markerBg: theme === "contrast" ? "#ffe14d" : `${c.accent}59`,
+        markerText: theme === "contrast" ? "#0b0b0c" : text,
+      };
   const rich = (
     value: string,
     size: number,
@@ -277,6 +283,61 @@ export function CarouselSlide({
       </button>
     );
   };
+  const placeholder = (
+    name: "body" | "items" | "value",
+    hint: string,
+  ) => {
+    if (!showPlaceholders) return null;
+    return field(
+      name,
+      <div
+        style={{
+          display: "flex",
+          minHeight: name === "items" ? 310 : 210,
+          width: "100%",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 28,
+          border: `3px dashed ${text}4d`,
+          borderRadius: 16,
+          boxSizing: "border-box",
+        }}
+      >
+        <span
+          style={{
+            maxWidth: 760,
+            color: `${text}80`,
+            fontSize: 36,
+            fontWeight: 650,
+            lineHeight: 1.18,
+            textAlign: "center",
+          }}
+        >
+          {hint}
+        </span>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onFillField?.(name);
+          }}
+          style={{
+            padding: "18px 30px",
+            border: 0,
+            borderRadius: 999,
+            background: text,
+            color: baseBackground,
+            fontSize: 28,
+            fontWeight: 750,
+          }}
+        >
+          ✦ Заполнить из сценария
+        </button>
+      </div>,
+      { width: "100%", marginTop: 48 },
+    );
+  };
   const grain =
     theme === "film" ? (
       <div
@@ -311,8 +372,15 @@ export function CarouselSlide({
             height: 6,
             flex: 1,
             borderRadius: 3,
-            background:
-              i < index ? `${text}e6` : i === index ? c.accent : `${text}40`,
+            background: accentSlide
+              ? i <= index
+                ? `${text}e6`
+                : `${text}40`
+              : i < index
+                ? `${text}e6`
+                : i === index
+                  ? c.accent
+                  : `${text}40`,
           }}
         />
       ))}
@@ -490,6 +558,8 @@ export function CarouselSlide({
           </div>
         )}
         {slide.layout !== "photo-example" && slide.layout !== "cta" && title}
+        {slide.layout === "number" && !slide.value &&
+          placeholder("value", "Добавьте число или короткую фразу")}
         {slide.items && isList && (
           <div
             style={{
@@ -521,6 +591,10 @@ export function CarouselSlide({
             )}
           </div>
         )}
+        {isList && !slide.items?.length &&
+          placeholder("items", "Добавьте 3 пункта")}
+        {slide.layout === "statement" && !slide.body &&
+          placeholder("body", "Добавьте поясняющий текст")}
         {slide.body &&
           slide.layout !== "cta" &&
           field(

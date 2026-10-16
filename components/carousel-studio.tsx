@@ -120,6 +120,22 @@ const themeNames: Record<CarouselTheme, string> = {
 };
 const themes = Object.keys(themeNames) as CarouselTheme[];
 
+function missingField(slide: CarouselSlideData) {
+  if (slide.layout === "statement" && !slide.body) return "body" as const;
+  if ((slide.layout === "list" || slide.layout === "steps") && !slide.items?.length)
+    return "items" as const;
+  if (slide.layout === "number" && !slide.value) return "value" as const;
+  return null;
+}
+
+function missingLabel(layout: CarouselLayout, slide: CarouselSlideData) {
+  if (layout === "statement" && !slide.body) return "+ текст";
+  if ((layout === "list" || layout === "steps") && !slide.items?.length)
+    return "+ пункты";
+  if (layout === "number" && !slide.value) return "+ число";
+  return null;
+}
+
 function LayoutGlyph({ layout }: { layout: CarouselLayout }) {
   return (
     <span className={`cs-layout-glyph is-${layout}`} aria-hidden="true">
@@ -186,6 +202,8 @@ function ScaledSlide({
   selectedField?: string | null;
   onSelectField?: (field: string) => void;
   onSelectSlide?: () => void;
+  onFillField?: (field: "body" | "items" | "value") => void;
+  showPlaceholders?: boolean;
 }) {
   return (
     <div
@@ -217,6 +235,7 @@ export default function CarouselStudio() {
   const [sheet, setSheet] = useState<Sheet>(null);
   const [preview, setPreview] = useState(false);
   const [download, setDownload] = useState(false);
+  const [downloadWarning, setDownloadWarning] = useState<number | null>(null);
   const [demo, setDemo] = useState<DemoState>("ready");
   const [handle, setHandle] = useState("@anna.move");
   const [caption, setCaption] = useState(
@@ -225,6 +244,7 @@ export default function CarouselStudio() {
   const [dragged, setDragged] = useState<number | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const current = slides[active];
+  const firstIncomplete = slides.findIndex((slide) => missingField(slide));
   const selectField = (field: string) => {
     setSelectedField(field);
     setInspector("text");
@@ -233,6 +253,36 @@ export default function CarouselStudio() {
   const selectSlide = () => {
     setSelectedField(null);
     setInspector("slide");
+  };
+  const fillField = (field: "body" | "items" | "value", slideIndex = active) => {
+    setTimeout(() => {
+      setSlides((items) =>
+        items.map((slide, index) => {
+          if (index !== slideIndex) return slide;
+          if (field === "body")
+            return {
+              ...slide,
+              body: "В январе мы берём план на человека, которым только хотим стать",
+            };
+          if (field === "value") return { ...slide, value: "3 из 4" };
+          return {
+            ...slide,
+            items:
+              slide.layout === "steps"
+                ? [
+                    "Сократите план вдвое",
+                    "Отмечайте факт, а не вес",
+                    "После пропуска — сразу следующая",
+                  ]
+                : [
+                    "Слишком длинные тренировки",
+                    "Цель на результат, а не на действие",
+                    "Пропуск = провал",
+                  ],
+          };
+        }),
+      );
+    }, 800);
   };
   const resetSelection = () => {
     setSelectedField(null);
@@ -349,7 +399,15 @@ export default function CarouselStudio() {
               <Copy />
               Скопировать подпись
             </button>
-            <button className="primary" onClick={() => setDownload(false)}>
+            <button
+              className="primary"
+              onClick={() => {
+                if (firstIncomplete >= 0) {
+                  setDownloadWarning(firstIncomplete);
+                  setDownload(false);
+                } else setDownload(false);
+              }}
+            >
               <Download />
               Скачать
             </button>
@@ -412,6 +470,8 @@ export default function CarouselStudio() {
                 selectedField={selectedField}
                 onSelectField={selectField}
                 onSelectSlide={selectSlide}
+                onFillField={fillField}
+                showPlaceholders
               />
             </div>
             <div
@@ -436,6 +496,8 @@ export default function CarouselStudio() {
                     selectedField={index === active ? selectedField : null}
                     onSelectField={selectField}
                     onSelectSlide={selectSlide}
+                    onFillField={(field) => fillField(field, index)}
+                    showPlaceholders
                   />
                 </div>
               ))}
@@ -465,6 +527,7 @@ export default function CarouselStudio() {
             remove={remove}
             safeZone={safeZone}
             setSafeZone={setSafeZone}
+            fillField={fillField}
           />
           <nav className="cs-mobile-actions">
             {inspector === "slide" ? (
@@ -520,6 +583,18 @@ export default function CarouselStudio() {
           setDragged={setDragged}
           move={move}
         />
+      )}
+      {downloadWarning !== null && (
+        <div className="cs-modal" onMouseDown={(event) => event.target === event.currentTarget && setDownloadWarning(null)}>
+          <section className="cs-warning" role="dialog" aria-modal="true" aria-labelledby="download-warning-title">
+            <h2 id="download-warning-title">На слайде {downloadWarning + 1} есть пустые поля</h2>
+            <p>Можно быстро заполнить их из сценария или скачать карусель как есть.</p>
+            <div>
+              <button className="primary" onClick={() => { const field = missingField(slides[downloadWarning]); if (field) fillField(field, downloadWarning); setActive(downloadWarning); setMode("slide"); setDownloadWarning(null); }}>Заполнить</button>
+              <button onClick={() => setDownloadWarning(null)}>Скачать как есть</button>
+            </div>
+          </section>
+        </div>
       )}
       {preview && (
         <InstagramPreview
@@ -584,221 +659,35 @@ function MobileThumbs({
     </div>
   );
 }
-function InspectorPanel({
-  inspector,
-  setInspector,
-  current,
-  theme,
-  setTheme,
-  handle,
-  setHandle,
-  caption,
-  setCaption,
-  selectedField,
-  setSlides,
-  active,
-  duplicate,
-  remove,
-  safeZone,
-  setSafeZone,
-}: any) {
-  const update = (patch: Partial<CarouselSlideData>) =>
-    setSlides((items: CarouselSlideData[]) =>
-      items.map((s, i) => (i === active ? { ...s, ...patch } : s)),
-    );
-  const fieldLabel = selectedField?.startsWith("item-")
-    ? `Пункт ${Number(selectedField.split("-")[1]) + 1}`
-    : selectedField === "title"
-      ? "Заголовок"
-      : selectedField === "body"
-        ? "Подзаголовок"
-        : "Текст";
-  return (
-    <aside className="cs-inspector">
-      <nav className="cs-inspector-crumbs" aria-label="Путь настройки">
-        <button onClick={() => setInspector("carousel")}>Карусель</button>
-        {inspector !== "carousel" && (
-          <>
-            <ChevronRight />
-            <button onClick={() => setInspector("slide")}>
-              Слайд {active + 1}
-            </button>
-          </>
-        )}
-        {inspector === "text" && (
-          <>
-            <ChevronRight />
-            <span>{fieldLabel}</span>
-          </>
-        )}
-      </nav>
-      {inspector === "carousel" ? (
-        <>
-          <section>
-            <h3>Тема</h3>
-            <div className="cs-themes">
-              {themes.map((t) => (
-                <button
-                  className={theme === t ? "active" : ""}
-                  onClick={() => setTheme(t)}
-                  key={t}
-                >
-                  <div className="cs-theme-cover">
-                    <ScaledSlide
-                      slide={current}
-                      scale={96 / 1080}
-                      theme={t}
-                      index={0}
-                      total={8}
-                      handle={handle}
-                    />
-                  </div>
-                  <span>{themeNames[t]}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-          <section>
-            <h3>Просмотр</h3>
-            <label className="cs-check">
-              <input
-                type="checkbox"
-                checked={safeZone}
-                onChange={(e) => setSafeZone(e.target.checked)}
-              />
-              Безопасная зона
-            </label>
-          </section>
-          <section>
-            <h3>Автор</h3>
-            <label className="cs-author">
-              <span>А</span>
-              <input
-                value={handle}
-                onChange={(e) => setHandle(e.target.value)}
-              />
-            </label>
-            <label className="cs-check">
-              <input type="checkbox" />
-              Сделать по умолчанию
-            </label>
-          </section>
-          <section>
-            <h3>Подпись к посту</h3>
-            <textarea
-              value={caption}
-              maxLength={2200}
-              onChange={(e) => setCaption(e.target.value)}
-            />
-            <small>{caption.length}/2200</small>
-            <div className="cs-chips">
-              <button>
-                <Copy />
-                Копировать
-              </button>
-              <button>
-                <Sparkles />
-                Переписать
-              </button>
-            </div>
-          </section>
-        </>
-      ) : inspector === "slide" ? (
-        <>
-          <section>
-            <h3>Макет</h3>
-            <div className="cs-layouts">
-              {layouts.map((l) => (
-                <button
-                  className={current.layout === l.value ? "active" : ""}
-                  onClick={() => update({ layout: l.value })}
-                  key={l.value}
-                >
-                  <LayoutGlyph layout={l.value} />
-                  <small>{l.name}</small>
-                </button>
-              ))}
-            </div>
-          </section>
-          <section>
-            <h3>Фон</h3>
-            <div className="cs-segment wide">
-              <button className="active">Как тема</button>
-              <button>Акцент</button>
-            </div>
-          </section>
-          <div className="cs-inspector-buttons">
-            <button onClick={duplicate}>
-              <Copy />
-              Дублировать
-            </button>
-            <button className="danger" onClick={remove}>
-              <Trash2 />
-              Удалить
-            </button>
-          </div>
-        </>
-      ) : (
-        <TextControls
-          value={selectedField === "body" ? current.body || "" : current.title}
-          onChange={(value: string) =>
-            update(
-              selectedField === "body" ? { body: value } : { title: value },
-            )
-          }
-        />
-      )}
-    </aside>
-  );
+function InspectorPanel({ inspector, setInspector, current, theme, setTheme, handle, setHandle, caption, setCaption, selectedField, setSlides, active, duplicate, remove, safeZone, setSafeZone }: any) {
+  const update = (patch: Partial<CarouselSlideData>) => setSlides((items: CarouselSlideData[]) => items.map((s, i) => i === active ? { ...s, ...patch } : s));
+  const fieldLabel = selectedField?.startsWith("item-") ? `Пункт ${Number(selectedField.split("-")[1]) + 1}` : selectedField === "title" ? "Заголовок" : selectedField === "body" ? "Подзаголовок" : selectedField === "items" ? "Пункты" : selectedField === "value" ? "Число" : "Текст";
+  const textValue = selectedField === "body" ? current.body || "" : selectedField === "value" ? current.value || "" : selectedField === "items" ? (current.items || []).join("\n") : selectedField?.startsWith("item-") ? current.items?.[Number(selectedField.split("-")[1])] || "" : current.title;
+  const changeText = (value: string) => {
+    if (selectedField === "body") update({ body: value });
+    else if (selectedField === "value") update({ value });
+    else if (selectedField === "items") update({ items: value.split("\n").filter(Boolean) });
+    else if (selectedField?.startsWith("item-")) { const index = Number(selectedField.split("-")[1]); const items = [...(current.items || [])]; items[index] = value; update({ items }); }
+    else update({ title: value });
+  };
+  return <aside className="cs-inspector">
+    <nav className="cs-inspector-crumbs" aria-label="Путь настройки"><button onClick={() => setInspector("carousel")}>Карусель</button>{inspector !== "carousel" && <><ChevronRight/><button onClick={() => setInspector("slide")}>Слайд {active + 1}</button></>}{inspector === "text" && <><ChevronRight/><span>{fieldLabel}</span></>}</nav>
+    {inspector === "carousel" ? <>
+      <section><h3>Тема</h3><div className="cs-themes">{themes.map((t) => <button className={theme === t ? "active" : ""} onClick={() => setTheme(t)} key={t}><div className="cs-theme-cover"><ScaledSlide slide={current} scale={96 / 1080} theme={t} index={0} total={8} handle={handle}/></div><span>{themeNames[t]}</span></button>)}</div></section>
+      <section><h3>Просмотр</h3><label className="cs-check"><input type="checkbox" checked={safeZone} onChange={(e) => setSafeZone(e.target.checked)}/>Безопасная зона</label></section>
+      <section><h3>Автор</h3><label className="cs-author"><span>А</span><input value={handle} onChange={(e) => setHandle(e.target.value)}/></label><label className="cs-check"><input type="checkbox"/>Сделать по умолчанию</label></section>
+      <section><h3>Подпись к посту</h3><textarea value={caption} maxLength={2200} onChange={(e) => setCaption(e.target.value)}/><small>{caption.length}/2200</small><div className="cs-chips"><button><Copy/>Копировать</button><button><Sparkles/>Переписать</button></div></section>
+    </> : inspector === "slide" ? <>
+      <section><h3>Макет</h3><div className="cs-layouts">{layouts.map((l) => <button className={current.layout === l.value ? "active" : ""} onClick={() => update({ layout: l.value })} key={l.value}><LayoutGlyph layout={l.value}/><span className="cs-layout-copy"><small>{l.name}</small>{missingLabel(l.value, current) && <em>{missingLabel(l.value, current)}</em>}</span></button>)}</div></section>
+      <section><h3>Фон</h3><div className="cs-segment wide"><button className="active">Как тема</button><button>Акцент</button></div></section>
+      <div className="cs-inspector-buttons"><button onClick={duplicate}><Copy/>Дублировать</button><button className="danger" onClick={remove}><Trash2/>Удалить</button></div>
+    </> : <TextControls value={textValue} onChange={changeText}/>} </aside>;
 }
-function TextControls({
-  value,
-  onChange,
-  label = "Текст",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  label?: string;
-}) {
+function TextControls({ value, onChange, label = "Текст" }: { value: string; onChange: (v: string) => void; label?: string }) {
   const long = value.length > 60;
-  return (
-    <section className="cs-text-controls">
-      <h3>{label}</h3>
-      <textarea
-        className={long ? "long" : ""}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      <small>{value.length}/60</small>
-      {long && <p>Длинно — сократить?</p>}
-      <div className="cs-chips">
-        <button>
-          <Sparkles />
-          Короче
-        </button>
-        <button>
-          <Sparkles />
-          Другой вариант
-        </button>
-        <button>
-          <Sparkles />
-          Проще
-        </button>
-      </div>
-    </section>
-  );
+  return <section className="cs-text-controls"><h3>{label}</h3><textarea className={long ? "long" : ""} value={value} onChange={(e) => onChange(e.target.value)}/><small>{value.length}/60</small>{long && <p>Длинно — сократить?</p>}<div className="cs-chips"><button><Sparkles/>Короче</button><button><Sparkles/>Другой вариант</button><button><Sparkles/>Проще</button></div></section>;
 }
-function Overview({
-  slides,
-  theme,
-  handle,
-  active,
-  setActive,
-  setMode,
-  dragged,
-  setDragged,
-  move,
-}: any) {
+function Overview({ slides, theme, handle, active, setActive, setMode, dragged, setDragged, move }: any) {
   return (
     <main className="cs-overview">
       <header>{slides.length} слайдов · ~35 секунд чтения</header>
@@ -820,6 +709,9 @@ function Overview({
               className={index === active ? "active" : ""}
               onClick={() => setActive(index)}
             >
+              {missingField(slide) && (
+                <span className="cs-empty-note">Не заполнено</span>
+              )}
               <ScaledSlide
                 slide={slide}
                 scale={0.19}
