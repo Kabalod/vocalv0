@@ -12,6 +12,9 @@ import {
   Eye,
   GripVertical,
   Image as ImageIcon,
+  ImagePlus,
+  AlertTriangle,
+  Pipette,
   LayoutGrid,
   MoreHorizontal,
   Palette,
@@ -28,6 +31,7 @@ import {
   type CarouselLayout,
   type CarouselSlideData,
   type CarouselTheme,
+  type MarkStyle,
 } from "./carousel-slide";
 import "./carousel-studio.css";
 import "./carousel-studio-refinements.css";
@@ -36,7 +40,8 @@ type Mode = "slide" | "overview";
 type DemoState =
   "no-script" | "empty" | "building" | "error" | "ready" | "updated";
 type Inspector = "carousel" | "slide" | "text";
-type Sheet = "text" | "theme" | "caption" | "layout" | "share" | null;
+type Sheet = "text" | "theme" | "caption" | "layout" | "share" | "photo" | null;
+type PhotoView = "suggested" | "stash" | "takes" | "device";
 
 const initialSlides: CarouselSlideData[] = [
   {
@@ -45,6 +50,7 @@ const initialSlides: CarouselSlideData[] = [
     kicker: "3 ошибки",
     title: "Почему вы *бросаете* спорт к середине февраля",
     photo: "/images/carousel-author.png",
+    photoSource: "Дубль 2 · 0:41",
     caption: "Почему привычка не переживает февраль",
   },
   {
@@ -69,12 +75,14 @@ const initialSlides: CarouselSlideData[] = [
     kicker: "Дорога в зал",
     title: "Начните с маршрута, который уже знаком",
     photo: "/images/carousel-road.png",
+    photoSource: "Копилка · 14 окт",
   },
   {
     id: 5,
     layout: "photo-example",
     title: "Маленький ритуал важнее идеального плана",
     photo: "/images/carousel-coffee.png",
+    photoSource: "Копилка · 14 окт",
     caption: "Маленький ритуал важнее идеального плана",
   },
   {
@@ -119,6 +127,13 @@ const themeNames: Record<CarouselTheme, string> = {
   contrast: "Контраст",
 };
 const themes = Object.keys(themeNames) as CarouselTheme[];
+
+function highlightTitle(value: string) {
+  const clean = value.replaceAll("*", "");
+  const keys = ["бросаете", "силе воли", "результат", "15 минут", "сразу", "понедельника", "Сохраните"];
+  const key = keys.find((word) => clean.toLowerCase().includes(word.toLowerCase()));
+  return key ? clean.replace(new RegExp(key, "i"), (match) => `*${match}*`) : value;
+}
 
 function missingField(slide: CarouselSlideData) {
   if (slide.layout === "statement" && !slide.body) return "body" as const;
@@ -204,6 +219,9 @@ function ScaledSlide({
   onSelectSlide?: () => void;
   onFillField?: (field: "body" | "items" | "value") => void;
   showPlaceholders?: boolean;
+  accent?: string;
+  markStyle?: MarkStyle;
+  onChoosePhoto?: () => void;
 }) {
   return (
     <div
@@ -242,6 +260,12 @@ export default function CarouselStudio() {
     "Три ошибки, из-за которых привычка не переживает февраль — и простой способ вернуться без чувства вины.",
   );
   const [dragged, setDragged] = useState<number | null>(null);
+  const [accent, setAccent] = useState("#a28bfb");
+  const [markStyle, setMarkStyle] = useState<MarkStyle>("fill");
+  const [accentMode, setAccentMode] = useState<"auto" | "third" | "manual">("auto");
+  const [photoDialog, setPhotoDialog] = useState(false);
+  const [cropDialog, setCropDialog] = useState(false);
+  const [toast, setToast] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
   const current = slides[active];
   const firstIncomplete = slides.findIndex((slide) => missingField(slide));
@@ -443,8 +467,10 @@ export default function CarouselStudio() {
                     theme={theme}
                     index={index}
                     total={slides.length}
-                    handle={handle}
-                  />
+                handle={handle}
+                accent={accent}
+                markStyle={markStyle}
+              />
                 </button>
               ))}
             </div>
@@ -472,6 +498,9 @@ export default function CarouselStudio() {
                 onSelectSlide={selectSlide}
                 onFillField={fillField}
                 showPlaceholders
+                accent={accent}
+                markStyle={markStyle}
+                onChoosePhoto={() => setPhotoDialog(true)}
               />
             </div>
             <div
@@ -528,6 +557,18 @@ export default function CarouselStudio() {
             safeZone={safeZone}
             setSafeZone={setSafeZone}
             fillField={fillField}
+            accent={accent}
+            setAccent={setAccent}
+            markStyle={markStyle}
+            setMarkStyle={setMarkStyle}
+            accentMode={accentMode}
+            setAccentMode={setAccentMode}
+            onHighlight={() => {
+              setSlides((items) => items.map((slide) => ({ ...slide, title: highlightTitle(slide.title), body: slide.body ? highlightTitle(slide.body) : slide.body, value: slide.value ? highlightTitle(slide.value) : slide.value, items: slide.items?.map(highlightTitle) })));
+              setToast(true);
+            }}
+            onChoosePhoto={() => setPhotoDialog(true)}
+            onCropPhoto={() => setCropDialog(true)}
           />
           <nav className="cs-mobile-actions">
             {inspector === "slide" ? (
@@ -582,8 +623,27 @@ export default function CarouselStudio() {
           dragged={dragged}
           setDragged={setDragged}
           move={move}
+          accent={accent}
+          markStyle={markStyle}
         />
       )}
+      {photoDialog && (
+        <PhotoPicker
+          onClose={() => setPhotoDialog(false)}
+          onPick={(photo, source) => {
+            setSlides((items) => items.map((slide, index) => index === active ? { ...slide, photo, photoSource: source } : slide));
+            setPhotoDialog(false);
+            setCropDialog(true);
+          }}
+        />
+      )}
+      {cropDialog && (
+        <CropDialog
+          photo={current.photo || "/images/anna-portrait.png"}
+          onClose={() => setCropDialog(false)}
+        />
+      )}
+      {toast && <div className="cs-toast">Выделено на 7 слайдах <button onClick={() => setToast(false)}>Отменить</button></div>}
       {downloadWarning !== null && (
         <div className="cs-modal" onMouseDown={(event) => event.target === event.currentTarget && setDownloadWarning(null)}>
           <section className="cs-warning" role="dialog" aria-modal="true" aria-labelledby="download-warning-title">
@@ -659,10 +719,11 @@ function MobileThumbs({
     </div>
   );
 }
-function InspectorPanel({ inspector, setInspector, current, theme, setTheme, handle, setHandle, caption, setCaption, selectedField, setSlides, active, duplicate, remove, safeZone, setSafeZone }: any) {
+function InspectorPanel({ inspector, setInspector, current, theme, setTheme, handle, setHandle, caption, setCaption, selectedField, setSlides, active, duplicate, remove, safeZone, setSafeZone, accent, setAccent, markStyle, setMarkStyle, accentMode, setAccentMode, onHighlight, onChoosePhoto, onCropPhoto }: any) {
   const update = (patch: Partial<CarouselSlideData>) => setSlides((items: CarouselSlideData[]) => items.map((s, i) => i === active ? { ...s, ...patch } : s));
   const fieldLabel = selectedField?.startsWith("item-") ? `Пункт ${Number(selectedField.split("-")[1]) + 1}` : selectedField === "title" ? "Заголовок" : selectedField === "body" ? "Подзаголовок" : selectedField === "items" ? "Пункты" : selectedField === "value" ? "Число" : "Текст";
   const textValue = selectedField === "body" ? current.body || "" : selectedField === "value" ? current.value || "" : selectedField === "items" ? (current.items || []).join("\n") : selectedField?.startsWith("item-") ? current.items?.[Number(selectedField.split("-")[1])] || "" : current.title;
+  const accentPresets = theme === "contrast" ? ["#ffe14d", "#ff4d2e", "#3dff9a", "#4da3ff", "#ff7ad9", "#ffffff"] : ["#a28bfb", "#8fd4a8", "#f0c987", "#ff8e9b", "#7ab8ff", "#ffffff"];
   const changeText = (value: string) => {
     if (selectedField === "body") update({ body: value });
     else if (selectedField === "value") update({ value });
@@ -674,12 +735,14 @@ function InspectorPanel({ inspector, setInspector, current, theme, setTheme, han
     <nav className="cs-inspector-crumbs" aria-label="Путь настройки"><button onClick={() => setInspector("carousel")}>Карусель</button>{inspector !== "carousel" && <><ChevronRight/><button onClick={() => setInspector("slide")}>Слайд {active + 1}</button></>}{inspector === "text" && <><ChevronRight/><span>{fieldLabel}</span></>}</nav>
     {inspector === "carousel" ? <>
       <section><h3>Тема</h3><div className="cs-themes">{themes.map((t) => <button className={theme === t ? "active" : ""} onClick={() => setTheme(t)} key={t}><div className="cs-theme-cover"><ScaledSlide slide={current} scale={96 / 1080} theme={t} index={0} total={8} handle={handle}/></div><span>{themeNames[t]}</span></button>)}</div></section>
+      <section className="cs-accent-panel"><h3>Акцент</h3><div className="cs-swatch-row">{accentPresets.map((color: string) => <button key={color} aria-label={`Акцент ${color}`} className={accent === color ? "active" : ""} style={{ background: color }} onClick={() => setAccent(color)}/>) }<label className="cs-eyedropper" aria-label="Свой цвет"><span>+</span><Pipette/><input type="color" value={accent} onChange={(event) => setAccent(event.target.value)}/></label></div><label className="cs-hex">HEX <input value={accent} onChange={(event) => /^#[0-9a-f]{0,6}$/i.test(event.target.value) && setAccent(event.target.value)}/></label><div className="cs-contrast-warning"><AlertTriangle/><span>Плохо читается на слайдах 2, 6</span><button onClick={() => setAccent(theme === "contrast" ? "#ffe14d" : "#a28bfb")}>Исправить</button></div><div className="cs-mark-styles">{([['fill','Заливка'],['underline','Подчёркивание'],['color','Цвет']] as const).map(([value,label]) => <button key={value} className={markStyle === value ? "active" : ""} onClick={() => setMarkStyle(value)}>{label}</button>)}</div><button className="cs-highlight-button" onClick={onHighlight}><Sparkles/>Выделить главное</button><div className="cs-highlight-demo"><span>Привычка без силы воли</span><i style={{ background: accent }}>15 минут</i></div><h4>Акцентные слайды</h4><div className="cs-segment wide">{([['auto','Авто'],['third','Каждый 3-й'],['manual','Вручную']] as const).map(([value,label]) => <button key={value} className={accentMode === value ? "active" : ""} onClick={() => setAccentMode(value)}>{label}</button>)}</div></section>
       <section><h3>Просмотр</h3><label className="cs-check"><input type="checkbox" checked={safeZone} onChange={(e) => setSafeZone(e.target.checked)}/>Безопасная зона</label></section>
       <section><h3>Автор</h3><label className="cs-author"><span>А</span><input value={handle} onChange={(e) => setHandle(e.target.value)}/></label><label className="cs-check"><input type="checkbox"/>Сделать по умолчанию</label></section>
       <section><h3>Подпись к посту</h3><textarea value={caption} maxLength={2200} onChange={(e) => setCaption(e.target.value)}/><small>{caption.length}/2200</small><div className="cs-chips"><button><Copy/>Копировать</button><button><Sparkles/>Переписать</button></div></section>
     </> : inspector === "slide" ? <>
       <section><h3>Макет</h3><div className="cs-layouts">{layouts.map((l) => <button className={current.layout === l.value ? "active" : ""} onClick={() => update({ layout: l.value })} key={l.value}><LayoutGlyph layout={l.value}/><span className="cs-layout-copy"><small>{l.name}</small>{missingLabel(l.value, current) && <em>{missingLabel(l.value, current)}</em>}</span></button>)}</div></section>
-      <section><h3>Фон</h3><div className="cs-segment wide"><button className="active">Как тема</button><button>Акцент</button></div></section>
+      <section><h3>Фон</h3><div className="cs-segment wide"><button className={!current.background || current.background === "theme" ? "active" : ""} onClick={() => update({ background: "theme" })}>Как тема</button><button className={current.background === "accent" ? "active" : ""} onClick={() => update({ background: "accent" })}>Акцент</button><button className={current.background === "photo" ? "active" : ""} onClick={() => update({ background: "photo" })}>Фото</button></div></section>
+      <section className="cs-photo-panel"><h3>Фото</h3>{current.photo ? <div className="cs-photo-current"><img src={current.photo} alt="Текущее фото"/><span>{current.photoSource || "Загружено"}</span></div> : <span className="cs-photo-source">Фото не выбрано</span>}<div><button onClick={onChoosePhoto}><ImagePlus/>Заменить</button><button onClick={onCropPhoto}>Кадрировать</button><button className="danger" onClick={() => update({ photo: undefined, photoSource: undefined })}>Убрать</button></div></section>
       <div className="cs-inspector-buttons"><button onClick={duplicate}><Copy/>Дублировать</button><button className="danger" onClick={remove}><Trash2/>Удалить</button></div>
     </> : <TextControls value={textValue} onChange={changeText}/>} </aside>;
 }
@@ -687,7 +750,7 @@ function TextControls({ value, onChange, label = "Текст" }: { value: string
   const long = value.length > 60;
   return <section className="cs-text-controls"><h3>{label}</h3><textarea className={long ? "long" : ""} value={value} onChange={(e) => onChange(e.target.value)}/><small>{value.length}/60</small>{long && <p>Длинно — сократить?</p>}<div className="cs-chips"><button><Sparkles/>Короче</button><button><Sparkles/>Другой вариант</button><button><Sparkles/>Проще</button></div></section>;
 }
-function Overview({ slides, theme, handle, active, setActive, setMode, dragged, setDragged, move }: any) {
+function Overview({ slides, theme, handle, active, setActive, setMode, dragged, setDragged, move, accent, markStyle }: any) {
   return (
     <main className="cs-overview">
       <header>{slides.length} слайдов · ~35 секунд чтения</header>
@@ -719,6 +782,8 @@ function Overview({ slides, theme, handle, active, setActive, setMode, dragged, 
                 index={index}
                 total={slides.length}
                 handle={handle}
+                accent={accent}
+                markStyle={markStyle}
               />
             </button>
             {index < slides.length - 1 && (
@@ -734,6 +799,39 @@ function Overview({ slides, theme, handle, active, setActive, setMode, dragged, 
     </main>
   );
 }
+function PhotoPicker({ onClose, onPick }: { onClose: () => void; onPick: (photo: string, source: string) => void }) {
+  const [view, setView] = useState<PhotoView>("suggested");
+  const [selected, setSelected] = useState({ photo: "/images/anna-portrait.png", source: "Дубль 2 · 0:41" });
+  const [video, setVideo] = useState(false);
+  const tabs: { value: PhotoView; label: string }[] = [{ value: "suggested", label: "✦ Подходит" }, { value: "stash", label: "Копилка" }, { value: "takes", label: "Дубли" }, { value: "device", label: "С устройства" }];
+  const cards = view === "suggested" ? [
+    ["/images/anna-portrait.png", "вы смотрите в камеру · дубль 2", "Дубль 2 · 0:41"],
+    ["/images/habit-gym.png", "по подписи «Дорога в зал»", "Копилка · 14 окт"],
+    ["/images/habit-coffee.png", "спокойный утренний свет", "Копилка · 14 окт"],
+    ["/images/anna-portrait.png", "лицо в верхней трети", "Дубль 1 · 0:38"],
+    ["/images/habit-gym.png", "подходит к теме привычек", "Копилка · 9 окт"],
+    ["/images/habit-coffee.png", "место для заголовка", "Копилка · 6 окт"],
+  ] : view === "stash" ? [
+    ["/images/habit-coffee.png", "Кофе на подоконнике · Фото", "Копилка · 14 окт"],
+    ["/images/habit-gym.png", "Дорога в зал · Видео 0:24", "Копилка · 14 окт"],
+    ["/images/anna-portrait.png", "После тренировки · Видео 0:18", "Копилка · 14 окт"],
+    ["/images/habit-gym.png", "Видео · 9 окт", "Копилка · 9 окт"],
+    ["/images/habit-coffee.png", "Фото · 6 окт", "Копилка · 6 окт"],
+  ] : [
+    ["/images/anna-portrait.png", "Дубль 1 · 0:38 · в камеру", "Дубль 1 · 0:38"],
+    ["/images/anna-portrait.png", "Дубль 2 · 0:41 · в камеру", "Дубль 2 · 0:41"],
+    ["/images/habit-gym.png", "Кадр 0:12", "Дубль 2 · 0:12"],
+  ];
+  return <div className="cs-modal" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="cs-photo-picker" role="dialog" aria-modal="true" aria-labelledby="photo-picker-title"><header><div><h2 id="photo-picker-title">Выбрать фото</h2><p>Подходящие кадры из вашей копилки и дублей</p></div><button onClick={onClose} aria-label="Закрыть"><X/></button></header><div className="cs-photo-tabs">{tabs.map((tab) => <button key={tab.value} className={view === tab.value ? "active" : ""} onClick={() => { setView(tab.value); setVideo(false); }}>{tab.label}</button>)}</div>{view === "device" ? <div className="cs-device-drop"><ImagePlus/><b>Перетащите или выберите файл</b><span>JPG, PNG, HEIC, до 20 МБ</span><div><button>Фотоплёнка</button><button>Камера</button></div></div> : <><div className="cs-library-heading"><b>{view === "stash" ? "Сегодня · 14 окт" : view === "takes" ? "Дубли мысли" : "Рекомендуем для обложки"}</b>{view === "stash" && <span><button className="active">Фото</button><button>Видео</button></span>}</div><div className="cs-photo-grid">{cards.map(([photo, reason, source], index) => <button key={`${reason}-${index}`} className={selected.photo === photo && selected.source === source ? "active" : ""} onClick={() => { setSelected({ photo, source }); setVideo(reason.includes("Видео")); }}><img src={photo} alt=""/><span>{reason}</span>{source === "Копилка · 14 окт" && index === 0 && <i>в карусели · Привычка и мотивация</i>}</button>)}</div>{video && <div className="cs-frame-picker"><b>Выберите кадр</b><div>{[0,1,2,3,4].map((item) => <img src="/images/habit-gym.png" alt="" key={item}/>) }<input type="range" min="0" max="24" defaultValue="12"/></div><button>Взять этот кадр</button></div>}</>}<footer><button onClick={onClose}>Отмена</button><button className="primary" onClick={() => onPick(selected.photo, selected.source)}>Поставить</button></footer></section></div>;
+}
+
+function CropDialog({ photo, onClose }: { photo: string; onClose: () => void }) {
+  const [zoom, setZoom] = useState(138);
+  const [shade, setShade] = useState(42);
+  const [filter, setFilter] = useState("Как есть");
+  return <div className="cs-modal"><section className="cs-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="crop-title"><header><div><h2 id="crop-title">Кадрирование обложки</h2><p>Лицо и заголовок останутся в безопасной зоне</p></div><button onClick={onClose} aria-label="Закрыть"><X/></button></header><div className="cs-crop-work"><div className={`cs-crop-frame filter-${filter}`}><img src={photo} alt="Кадрируемое фото" style={{ transform: `scale(${zoom / 100})` }}/><div className="cs-crop-safe"/><div className="cs-crop-third"/><span>3:4</span></div><div className="cs-crop-controls"><button className="cs-auto-crop"><Sparkles/>Авто · лицо в верхней трети</button><label>Масштаб <b>{zoom}%</b><input type="range" min="100" max="300" value={zoom} onChange={(event) => setZoom(Number(event.target.value))}/></label><label>Затемнение под текст <b>{shade}%</b><input type="range" min="0" max="80" value={shade} onChange={(event) => setShade(Number(event.target.value))}/></label><div className="cs-filter-row">{["Как есть", "Ч/Б", "Тёплый", "Плёнка"].map((item) => <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>)}</div></div></div><footer><button onClick={onClose}>Отмена</button><button className="primary" onClick={onClose}>Готово</button></footer></section></div>;
+}
+
 function InstagramPreview({
   slides,
   theme,

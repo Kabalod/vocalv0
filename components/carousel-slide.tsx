@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Bookmark } from "lucide-react";
+import { Bookmark, ImagePlus } from "lucide-react";
 
 export type CarouselTheme =
   "editorial" | "swiss" | "film" | "notebook" | "contrast";
@@ -14,6 +14,8 @@ export type CarouselLayout =
   | "split"
   | "photo-example"
   | "cta";
+export type MarkStyle = "fill" | "underline" | "color";
+export type SlideBackground = "theme" | "accent" | "photo";
 export type CarouselSlideData = {
   id: number;
   layout: CarouselLayout;
@@ -23,7 +25,9 @@ export type CarouselSlideData = {
   items?: string[];
   value?: string;
   photo?: string;
+  photoSource?: string;
   caption?: string;
+  background?: SlideBackground;
 };
 
 type ThemeStyle = {
@@ -36,7 +40,7 @@ type ThemeStyle = {
   mono?: boolean;
   lined?: boolean;
 };
-type MarkTheme = { markerBg: string; markerText?: string };
+type MarkTheme = { markerBg: string; markerText?: string; accent: string; markStyle: MarkStyle };
 
 export const carouselThemeStyles: Record<CarouselTheme, ThemeStyle> = {
   editorial: {
@@ -82,6 +86,13 @@ export const carouselThemeStyles: Record<CarouselTheme, ThemeStyle> = {
     weight: 900,
   },
 };
+
+function getContrastText(hex: string) {
+  const value = hex.replace("#", "");
+  const rgb = [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16) / 255);
+  const luminance = rgb.map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+  return (luminance + 0.05) / 0.05 >= 4.5 ? "#0b0b0c" : "#ffffff";
+}
 
 const NBSP = "\u00A0";
 const SHORT =
@@ -142,9 +153,13 @@ export function RichText(props: {
             paddingLeft: t.mark ? size * 0.1 : 0,
             paddingRight: t.mark ? size * 0.1 : 0,
             marginLeft: t.mark ? -size * 0.05 : 0,
-            backgroundColor: t.mark ? theme.markerBg : "transparent",
-            color: t.mark && theme.markerText ? theme.markerText : color,
-            borderRadius: t.mark ? size * 0.08 : 0,
+            backgroundColor: t.mark && theme.markStyle === "fill" ? theme.markerBg : "transparent",
+            color: t.mark && theme.markStyle === "color" ? theme.accent : t.mark && theme.markerText ? theme.markerText : color,
+            borderRadius: t.mark && theme.markStyle === "fill" ? size * 0.08 : 0,
+            backgroundImage: t.mark && theme.markStyle === "underline" ? `linear-gradient(${theme.accent},${theme.accent})` : undefined,
+            backgroundPosition: t.mark && theme.markStyle === "underline" ? "0 calc(100% - .05em)" : undefined,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: t.mark && theme.markStyle === "underline" ? "100% .18em" : undefined,
           }}
         >
           {t.w}
@@ -185,6 +200,9 @@ export function CarouselSlide({
   onFillField,
   showPlaceholders = false,
   safeZone = false,
+  accent,
+  markStyle = "fill",
+  onChoosePhoto,
 }: {
   slide: CarouselSlideData;
   theme: CarouselTheme;
@@ -197,32 +215,36 @@ export function CarouselSlide({
   onFillField?: (field: "body" | "items" | "value") => void;
   showPlaceholders?: boolean;
   safeZone?: boolean;
+  accent?: string;
+  markStyle?: MarkStyle;
+  onChoosePhoto?: () => void;
 }) {
   const c = carouselThemeStyles[theme];
-  const accentSlide = slide.layout === "number" || slide.layout === "cta";
-  const photo = slide.photo || photoByLayout[slide.layout];
+  const activeAccent = accent || c.accent;
+  const accentSlide = slide.background === "accent" || (slide.background !== "theme" && (slide.layout === "number" || slide.layout === "cta"));
+  const photo = slide.photo === "" ? undefined : slide.photo || photoByLayout[slide.layout];
+  const photoBackground = slide.background === "photo";
   const isPhotoCover = slide.layout === "photo-cover";
-  const text = isPhotoCover
+  const text = isPhotoCover || photoBackground
     ? "#ffffff"
     : accentSlide
-      ? theme === "contrast"
-        ? "#0b0b0c"
-        : "#ffffff"
+      ? getContrastText(activeAccent)
       : c.text;
-  const muted = isPhotoCover
+  const muted = isPhotoCover || photoBackground
     ? "rgba(255,255,255,.8)"
     : accentSlide
-      ? theme === "contrast"
-        ? "rgba(0,0,0,.8)"
-        : "rgba(255,255,255,.8)"
+      ? text === "#0b0b0c" ? "rgba(11,11,12,.74)" : "rgba(255,255,255,.8)"
       : c.muted;
   const isList = slide.layout === "list" || slide.layout === "steps";
   const isCover = slide.layout === "cover" || isPhotoCover;
+  const accentText = getContrastText(activeAccent);
   const markTheme = accentSlide
-    ? { markerBg: text, markerText: c.accent }
+    ? { markerBg: text, markerText: activeAccent, accent: activeAccent, markStyle }
     : {
-        markerBg: theme === "contrast" ? "#ffe14d" : `${c.accent}59`,
-        markerText: theme === "contrast" ? "#0b0b0c" : text,
+        markerBg: theme === "contrast" || isPhotoCover || photoBackground ? activeAccent : `${activeAccent}59`,
+        markerText: theme === "contrast" || isPhotoCover || photoBackground ? accentText : text,
+        accent: activeAccent,
+        markStyle,
       };
   const rich = (
     value: string,
@@ -255,10 +277,10 @@ export function CarouselSlide({
       margin: -12,
       border:
         selectedField === name
-          ? `3px solid ${c.accent}`
+          ? `3px solid ${activeAccent}`
           : "3px solid transparent",
       borderRadius: 18,
-      background: selectedField === name ? `${c.accent}18` : "transparent",
+      background: selectedField === name ? `${activeAccent}18` : "transparent",
       color: "inherit",
       textAlign: "left",
       ...style,
@@ -345,6 +367,24 @@ export function CarouselSlide({
       { width: "100%", marginTop: 48 },
     );
   };
+  const photoPlaceholder = (
+    <button
+      type="button"
+      onClick={(event) => { event.stopPropagation(); onChoosePhoto?.(); }}
+      style={{ display: "flex", width: "100%", minHeight: 520, flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 24, border: `3px dashed ${text}55`, borderRadius: 22, background: `${activeAccent}12`, color: text }}
+    >
+      <ImagePlus aria-hidden="true" style={{ width: 72, height: 72 }} />
+      <strong style={{ fontSize: 36 }}>Перетащите фото или выберите</strong>
+      <span style={{ display: "flex", gap: 16 }}>
+        {["/images/carousel-author.png", "/images/carousel-road.png", "/images/carousel-coffee.png"].map((src) => (
+          <span key={src} style={{ position: "relative", width: 120, height: 96, overflow: "hidden", borderRadius: 12 }}>
+            <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <small style={{ position: "absolute", left: 6, bottom: 6, padding: "4px 7px", borderRadius: 999, background: "rgba(11,11,12,.78)", color: "white", fontSize: 15 }}>✦ Подходит</small>
+          </span>
+        ))}
+      </span>
+    </button>
+  );
   const grain =
     theme === "film" ? (
       <div
@@ -386,7 +426,7 @@ export function CarouselSlide({
               : i < index
                 ? `${text}e6`
                 : i === index
-                  ? c.accent
+                  ? activeAccent
                   : `${text}40`,
           }}
         />
@@ -394,7 +434,7 @@ export function CarouselSlide({
     </div>
   );
   const baseBackground = accentSlide
-    ? c.accent
+    ? activeAccent
     : c.lined
       ? "repeating-linear-gradient(to bottom,#f3eee4 0,#f3eee4 63px,rgba(0,0,0,.06) 64px)"
       : c.background;
@@ -428,7 +468,7 @@ export function CarouselSlide({
         boxSizing: "border-box",
       }}
     >
-      {isPhotoCover && photo && (
+      {(isPhotoCover || photoBackground) && photo && (
         <div style={{ position: "absolute", inset: 0 }}>
           <img
             src={photo}
@@ -438,7 +478,7 @@ export function CarouselSlide({
           {grain}
         </div>
       )}
-      {isPhotoCover && (
+      {(isPhotoCover || photoBackground) && photo && (
         <div
           style={{
             position: "absolute",
@@ -449,6 +489,9 @@ export function CarouselSlide({
         />
       )}
       {progress}
+      {(isPhotoCover || photoBackground) && !photo && (
+        <div style={{ position: "absolute", inset: 88, display: "flex", alignItems: "center", zIndex: 2 }}>{photoPlaceholder}</div>
+      )}
       {theme === "swiss" && !isPhotoCover && slide.layout !== "split" && (
         <span
           aria-hidden="true"
@@ -512,7 +555,7 @@ export function CarouselSlide({
             rich(
               slide.kicker,
               theme === "film" ? 28 : 32,
-              isPhotoCover ? "#fff" : accentSlide ? text : c.accent,
+              isPhotoCover ? "#fff" : accentSlide ? text : activeAccent,
               theme === "film"
                 ? "ui-monospace,monospace"
                 : "Inter,-apple-system,sans-serif",
@@ -528,6 +571,8 @@ export function CarouselSlide({
             rich(slide.value, 210, text, c.heading, c.weight, 0.9),
             { marginBottom: 54 },
           )}
+        {slide.layout === "photo-example" && !photo && photoPlaceholder}
+        {slide.layout === "split" && !photo && photoPlaceholder}
         {slide.layout === "photo-example" && photo && (
           <div
             style={{
@@ -584,7 +629,7 @@ export function CarouselSlide({
                     {rich(
                       slide.layout === "steps" ? String(itemIndex + 1) : "•",
                       46,
-                      accentSlide ? text : c.accent,
+                      accentSlide ? text : activeAccent,
                       c.heading,
                       700,
                       1.22,
@@ -690,7 +735,7 @@ export function CarouselSlide({
               display: "flex",
               alignItems: "flex-end",
               gap: 20,
-              color: c.accent,
+              color: activeAccent,
             }}
           >
             {rich(
