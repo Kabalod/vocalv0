@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Lightbulb, Plus, UserRound } from "lucide-react";
 import { useIsDesktop } from "../desktop-views";
-import { THOUGHTS, TODAY, addDays, dayLabelFull, initialPlan, mondayOf, monthTitle, parseDay, iso, withPlan, type Plan, type ThoughtId } from "./data";
+import { OUTPUTS, TODAY, addDays, dayLabelFull, initialPlan, mondayOf, monthTitle, parseDay, iso, toCard, type Plan, type OutputId } from "./data";
 import { computeCard, STAGE_TAB, type CardAction, type StageName, type StudioTab } from "./stage";
 import { DayPicker, Inspector, SlotPicker, useEscape } from "./overlays";
 import { MonthView, PipelineView, TodayBlock, Undated, WeekView, type Ctx } from "./views";
@@ -33,16 +33,16 @@ export default function Calendar({ onThoughts, onProfile, onNew, onOpenStudio }:
   const [pipelineStage, setPipelineStage] = useState(0);
   const [rhythm, setRhythm] = useState(3);
   const [rhythmOpen, setRhythmOpen] = useState(false);
-  const [inspector, setInspector] = useState<ThoughtId | null>(null);
-  const [dayPicker, setDayPicker] = useState<ThoughtId | null>(null);
+  const [inspector, setInspector] = useState<OutputId | null>(null);
+  const [dayPicker, setDayPicker] = useState<OutputId | null>(null);
   const [slotDay, setSlotDay] = useState<string | null>(null);
-  const [drag, setDrag] = useState<ThoughtId | null>(null);
+  const [drag, setDrag] = useState<OutputId | null>(null);
 
-  const thoughts = useMemo(() => THOUGHTS.map((t) => withPlan(t, plan)), [plan]);
-  const byId = useCallback((id: ThoughtId) => thoughts.find((t) => t.id === id)!, [thoughts]);
+  const thoughts = useMemo(() => OUTPUTS.map((o) => toCard(o, plan)), [plan]);
+  const byId = useCallback((id: OutputId) => thoughts.find((t) => t.id === id)!, [thoughts]);
   const isSlotDay = useCallback((day: string) => RHYTHM_ORDER.slice(0, rhythm).includes(parseDay(day).getDay()), [rhythm]);
 
-  const setRelease = (id: ThoughtId, release?: string) => setPlan((p) => ({ ...p, [id]: { ...p[id], release } }));
+  const setRelease = (id: OutputId, release?: string) => setPlan((p) => ({ ...p, [id]: { ...p[id], publishDate: release } }));
   const closeTop = () => { if (dayPicker) setDayPicker(null); else if (slotDay) setSlotDay(null); else if (rhythmOpen) setRhythmOpen(false); else setInspector(null); };
   useEscape(closeTop, Boolean(dayPicker || slotDay || rhythmOpen || inspector));
 
@@ -50,7 +50,7 @@ export default function Calendar({ onThoughts, onProfile, onNew, onOpenStudio }:
   const act = (thought: ReturnType<typeof byId>, action: CardAction) => {
     if (action.kind === "studio") openStudio(thought.title, action.tab);
     else if (action.kind === "shoot") openStudio(thought.title, "Монтаж", { shoot: true });
-    else if (action.kind === "release") setPlan((p) => ({ ...p, [thought.id]: { ...p[thought.id], released: true } }));
+    else if (action.kind === "release") setPlan((p) => ({ ...p, [thought.id]: { ...p[thought.id], publishedAt: TODAY } }));
   };
 
   const ctx: Ctx = {
@@ -140,7 +140,7 @@ export default function Calendar({ onThoughts, onProfile, onNew, onOpenStudio }:
         />
       )}
       {pickerThought && <DayPicker thought={pickerThought} rhythmDay={isSlotDay} onPick={(day) => { setRelease(pickerThought.id, day); setDayPicker(null); }} onClear={() => { setRelease(pickerThought.id, undefined); setDayPicker(null); }} onClose={() => setDayPicker(null)} />}
-      {slotDay && <SlotPicker day={slotDay} candidates={thoughts.filter((t) => !t.release && !t.released)} onPick={(id) => { setRelease(id, slotDay); setSlotDay(null); }} onClose={() => setSlotDay(null)} />}
+      {slotDay && <SlotPicker day={slotDay} candidates={thoughts.filter((t) => !t.publishDate && !t.publishedAt)} onPick={(id) => { setRelease(id, slotDay); setSlotDay(null); }} onClose={() => setSlotDay(null)} />}
     </div>
   );
 }

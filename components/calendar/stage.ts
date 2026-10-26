@@ -1,12 +1,12 @@
 // The stage of a thought, its blocker and its next action are never stored: they are computed from the facts in data.ts.
-import { plural, weekdayShort, type Thought } from "./data";
+import { plural, weekdayShort, type Card } from "./data";
 
 export type StageName = "Мысль" | "Сценарий" | "Монтаж" | "Съёмка" | "Слайды" | "Выход";
 export type StudioTab = "Диалог" | "Сценарий" | "Монтаж" | "Карусель";
 
 export const REEL_STAGES: readonly StageName[] = ["Мысль", "Сценарий", "Монтаж", "Съёмка", "Выход"];
 export const CAROUSEL_STAGES: readonly StageName[] = ["Мысль", "Сценарий", "Слайды", "Выход"];
-export const stagesFor = (format: Thought["format"]) => (format === "Карусель" ? CAROUSEL_STAGES : REEL_STAGES);
+export const stagesFor = (format: Card["format"]) => (format === "Карусель" ? CAROUSEL_STAGES : REEL_STAGES);
 
 /** The studio tab each stage lives in. "Съёмка" has no tab of its own: it opens the montage tab in shooting mode. */
 export const STAGE_TAB: Partial<Record<StageName, StudioTab>> = { Мысль: "Диалог", Сценарий: "Сценарий", Монтаж: "Монтаж", Слайды: "Карусель" };
@@ -29,7 +29,7 @@ export type CardInfo = {
   action: CardAction;
 };
 
-export function isStageComplete(thought: Thought, stage: StageName): boolean {
+export function isStageComplete(thought: Card, stage: StageName): boolean {
   const f = thought.facts;
   switch (stage) {
     case "Мысль": return f.answers > 0 && f.openQuestions === 0;
@@ -37,13 +37,13 @@ export function isStageComplete(thought: Thought, stage: StageName): boolean {
     case "Монтаж": return f.shotsTotal > 0;
     case "Съёмка": return f.shotsTotal > 0 && f.shotsHave >= f.shotsTotal;
     case "Слайды": return f.slides > 0;
-    case "Выход": return Boolean(thought.released);
+    case "Выход": return Boolean(thought.publishedAt);
   }
 }
 
-export const missingShots = (thought: Thought) => Math.max(0, thought.facts.shotsTotal - thought.facts.shotsHave);
+export const missingShots = (thought: Card) => Math.max(0, thought.facts.shotsTotal - thought.facts.shotsHave);
 
-export function computeCard(thought: Thought): CardInfo {
+export function computeCard(thought: Card): CardInfo {
   const stages = stagesFor(thought.format);
   const complete = stages.map((stage) => isStageComplete(thought, stage));
   const first = complete.indexOf(false);
@@ -57,7 +57,7 @@ export function computeCard(thought: Thought): CardInfo {
   }
   const shootIndex = stages.indexOf("Съёмка");
   const shootPending = shootIndex !== -1 && !complete[shootIndex];
-  const risk = shootPending && thought.shoot && thought.release && thought.shoot > thought.release ? "Съёмка позже выхода" : undefined;
+  const risk = shootPending && thought.shoot && thought.publishDate && thought.shoot > thought.publishDate ? "Съёмка позже выхода" : undefined;
 
   let action: CardAction;
   switch (stage) {
@@ -66,7 +66,7 @@ export function computeCard(thought: Thought): CardInfo {
     case "Монтаж": action = { kind: "studio", tab: "Монтаж", label: "Собрать монтаж ›" }; break;
     case "Слайды": action = { kind: "studio", tab: "Карусель", label: "Слайды ›" }; break;
     case "Съёмка": action = { kind: "shoot", label: thought.shoot ? `Съёмка ${weekdayShort(thought.shoot)} ›` : "Снять ›" }; break;
-    case "Выход": action = thought.released ? { kind: "done", label: "Вышло ✓" } : { kind: "release", label: "Отметить как вышло" }; break;
+    case "Выход": action = thought.publishedAt ? { kind: "done", label: "Вышло ✓" } : { kind: "release", label: "Отметить как вышло" }; break;
   }
   return { stages, index, stage, complete, blocker, risk, action };
 }

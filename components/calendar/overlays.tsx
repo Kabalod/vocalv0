@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { CalendarDays, Check, X } from "lucide-react";
-import { TODAY, addDays, dayLabel, dayLabelFull, dayOfMonth, plural, weekdayShort, type Thought } from "./data";
+import { TODAY, addDays, dayLabel, dayLabelFull, dayOfMonth, plural, weekdayShort, type Card } from "./data";
 import { FormatBadge } from "./ReelCard";
 import { STAGE_TAB, type CardAction, type CardInfo, type StageName } from "./stage";
 
@@ -30,25 +30,25 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 /** Choose the release day of a thought: the next 14 days, rhythm days marked. */
-export function DayPicker({ thought, rhythmDay, onPick, onClear, onClose }: { thought: Thought; rhythmDay: (day: string) => boolean; onPick: (day: string) => void; onClear: () => void; onClose: () => void }) {
+export function DayPicker({ thought, rhythmDay, onPick, onClear, onClose }: { thought: Card; rhythmDay: (day: string) => boolean; onPick: (day: string) => void; onClear: () => void; onClose: () => void }) {
   const days = Array.from({ length: 14 }, (_, i) => addDays(TODAY, i));
   return (
     <Sheet title={`На день · ${thought.title}`} onClose={onClose}>
       <div className="cal-day-grid">
         {days.map((day) => (
-          <button type="button" key={day} className={`${rhythmDay(day) ? "rhythm" : ""} ${thought.release === day ? "selected" : ""}`} onClick={() => onPick(day)} aria-label={dayLabelFull(day)}>
+          <button type="button" key={day} className={`${rhythmDay(day) ? "rhythm" : ""} ${thought.publishDate === day ? "selected" : ""}`} onClick={() => onPick(day)} aria-label={dayLabelFull(day)}>
             <span>{weekdayShort(day)}</span><b>{dayOfMonth(day)}</b>
           </button>
         ))}
       </div>
       <p className="cal-sheet-note">Фиолетовым отмечены слоты вашего ритма</p>
-      {thought.release && <button type="button" className="cal-sheet-danger" onClick={onClear}>Убрать из плана</button>}
+      {thought.publishDate && <button type="button" className="cal-sheet-danger" onClick={onClear}>Убрать из плана</button>}
     </Sheet>
   );
 }
 
 /** Put one of the thoughts without a date on a free day. */
-export function SlotPicker({ day, candidates, onPick, onClose }: { day: string; candidates: Thought[]; onPick: (id: Thought["id"]) => void; onClose: () => void }) {
+export function SlotPicker({ day, candidates, onPick, onClose }: { day: string; candidates: Card[]; onPick: (id: Card["id"]) => void; onClose: () => void }) {
   return (
     <Sheet title={`Свободно · ${dayLabelFull(day)}`} onClose={onClose}>
       {candidates.length === 0 ? <p className="cal-sheet-note">Нет мыслей без даты</p> : <p className="cal-sheet-note">Выберите мысль без даты</p>}
@@ -63,7 +63,7 @@ export function SlotPicker({ day, candidates, onPick, onClose }: { day: string; 
   );
 }
 
-function stageMeta(thought: Thought, stage: StageName): string {
+function stageMeta(thought: Card, stage: StageName): string {
   const f = thought.facts;
   switch (stage) {
     case "Мысль": return f.openQuestions > 0 ? `${f.answers} ${plural(f.answers, ["ответ", "ответа", "ответов"])}, без ответа: ${f.openQuestions}` : `${f.answers} ${plural(f.answers, ["ответ", "ответа", "ответов"])}`;
@@ -71,13 +71,13 @@ function stageMeta(thought: Thought, stage: StageName): string {
     case "Монтаж": return f.shotsTotal > 0 ? `${f.shotsTotal} ${plural(f.shotsTotal, ["кадр", "кадра", "кадров"])}: ${f.shotsHave} есть, ${f.shotsTotal - f.shotsHave} доснять` : "План кадров не собран";
     case "Съёмка": return thought.shoot ? dayLabel(thought.shoot) : "Не назначена";
     case "Слайды": return f.slides > 0 ? `${f.slides} ${plural(f.slides, ["слайд", "слайда", "слайдов"])}` : "Слайдов нет";
-    case "Выход": return thought.released ? "Вышло" : thought.release ? dayLabel(thought.release) : "Не запланирован";
+    case "Выход": return thought.publishedAt ? "Вышло" : thought.publishDate ? dayLabel(thought.publishDate) : "Не запланирован";
   }
 }
 
 /** The thought card opened from any mode: side panel on a wide screen, bottom sheet on a narrow one. */
 export function Inspector({ thought, info, onClose, onAction, onStage, onDate, onClear }: {
-  thought: Thought;
+  thought: Card;
   info: CardInfo;
   onClose: () => void;
   onAction: (action: CardAction) => void;
@@ -96,10 +96,10 @@ export function Inspector({ thought, info, onClose, onAction, onStage, onDate, o
             <div>
               <h2>{thought.title}</h2>
               <FormatBadge format={thought.format} />
-              <button type="button" className="cal-date-badge" onClick={onDate}><CalendarDays />{thought.release ? dayLabel(thought.release) : "Без даты"}</button>
+              <button type="button" className="cal-date-badge" onClick={onDate}><CalendarDays />{thought.publishDate ? dayLabel(thought.publishDate) : "Без даты"}</button>
             </div>
           </div>
-          {thought.release && !thought.released && <button type="button" className="cal-remove" onClick={onClear}>Убрать из плана</button>}
+          {thought.publishDate && !thought.publishedAt && <button type="button" className="cal-remove" onClick={onClear}>Убрать из плана</button>}
           <ol className="cal-tracker">
             {info.stages.map((stage, i) => {
               const state = info.complete[i] ? "complete" : i === info.index ? "current" : "";

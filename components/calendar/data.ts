@@ -2,7 +2,8 @@
 // Only facts live here: what has been done on a thought. Stage, blocker and action are computed in stage.ts.
 
 export type Format = "Рилс" | "Карусель";
-export type ThoughtId = "job" | "habit" | "phone" | "gym" | "coffee";
+export type ThoughtId = "job" | "habit" | "phone" | "gym" | "coffee" | "morning";
+export type OutputId = string;
 
 export type Facts = {
   /** Author answers in the dialogue. */
@@ -18,37 +19,58 @@ export type Facts = {
   slides: number;
 };
 
-export type Thought = {
-  id: ThoughtId;
-  title: string;
+/** A thought: the idea and the work done on it. One thought can have several outputs. */
+export type Thought = { id: ThoughtId; title: string; cover: string; facts: Facts };
+
+/** An output (выход): one piece published from a thought. The calendar card is an output, not a thought. */
+export type Output = {
+  id: OutputId;
+  thoughtId: ThoughtId;
   format: Format;
-  cover: string;
-  facts: Facts;
-  /** Release day, ISO "YYYY-MM-DD". No date = the thought sits in "Без даты". */
-  release?: string;
-  /** Shooting day, ISO. */
+  /** Planned publish day, ISO "YYYY-MM-DD". No date = the output sits in "Без даты". */
+  publishDate?: string;
+  /** Day it was published, ISO. Set = the output is out. */
+  publishedAt?: string;
+  /** Shooting day, ISO (reels). */
   shoot?: string;
-  released?: boolean;
 };
+
+/** What the views draw: an output joined with its thought. `id` is the output id. */
+export type Card = Omit<Thought, "id"> & Output;
 
 export const TODAY = "2026-10-14";
 
 export const THOUGHTS: Thought[] = [
-  { id: "job", title: "Почему я ушёл из найма", format: "Карусель", cover: "/events/evening.png", release: "2026-10-14", facts: { answers: 4, openQuestions: 0, scriptVersion: 3, shotsTotal: 0, shotsHave: 0, slides: 7 } },
-  { id: "habit", title: "Привычка и мотивация", format: "Рилс", cover: "/events/gym-road.png", release: "2026-10-16", shoot: "2026-10-15", facts: { answers: 4, openQuestions: 0, scriptVersion: 3, shotsTotal: 5, shotsHave: 3, slides: 0 } },
-  { id: "phone", title: "Утро без телефона", format: "Рилс", cover: "/events/coffee.png", release: "2026-10-18", facts: { answers: 3, openQuestions: 0, scriptVersion: 2, shotsTotal: 0, shotsHave: 0, slides: 0 } },
-  { id: "gym", title: "Три ошибки новичка в зале", format: "Рилс", cover: "/events/gym-road.png", facts: { answers: 2, openQuestions: 1, scriptVersion: null, shotsTotal: 0, shotsHave: 0, slides: 0 } },
-  { id: "coffee", title: "Кофе как ритуал", format: "Карусель", cover: "/events/coffee.png", facts: { answers: 3, openQuestions: 0, scriptVersion: null, shotsTotal: 0, shotsHave: 0, slides: 0 } },
+  { id: "job", title: "Почему я ушёл из найма", cover: "/events/evening.png", facts: { answers: 4, openQuestions: 0, scriptVersion: 3, shotsTotal: 0, shotsHave: 0, slides: 7 } },
+  { id: "habit", title: "Привычка и мотивация", cover: "/events/gym-road.png", facts: { answers: 4, openQuestions: 0, scriptVersion: 3, shotsTotal: 5, shotsHave: 3, slides: 0 } },
+  { id: "phone", title: "Утро без телефона", cover: "/events/coffee.png", facts: { answers: 3, openQuestions: 0, scriptVersion: 2, shotsTotal: 0, shotsHave: 0, slides: 0 } },
+  { id: "gym", title: "Три ошибки новичка в зале", cover: "/events/gym-road.png", facts: { answers: 2, openQuestions: 1, scriptVersion: null, shotsTotal: 0, shotsHave: 0, slides: 0 } },
+  { id: "coffee", title: "Кофе как ритуал", cover: "/events/coffee.png", facts: { answers: 3, openQuestions: 0, scriptVersion: null, shotsTotal: 0, shotsHave: 0, slides: 0 } },
+  // One thought, two outputs: a reel (shooting still pending) and a carousel (slides built), on different days.
+  { id: "morning", title: "Как я начинаю утро", cover: "/events/evening.png", facts: { answers: 5, openQuestions: 0, scriptVersion: 1, shotsTotal: 4, shotsHave: 1, slides: 5 } },
 ];
 
-/** Planning state the author changes in the calendar (release day, "вышло"). Everything else is derived. */
-export type PlanEntry = { release?: string; released?: boolean };
-export type Plan = Record<ThoughtId, PlanEntry>;
+export const OUTPUTS: Output[] = [
+  { id: "job-carousel", thoughtId: "job", format: "Карусель", publishDate: "2026-10-14" },
+  { id: "habit-reel", thoughtId: "habit", format: "Рилс", publishDate: "2026-10-16", shoot: "2026-10-15" },
+  { id: "phone-reel", thoughtId: "phone", format: "Рилс", publishDate: "2026-10-18" },
+  { id: "gym-reel", thoughtId: "gym", format: "Рилс" },
+  { id: "coffee-carousel", thoughtId: "coffee", format: "Карусель" },
+  { id: "morning-reel", thoughtId: "morning", format: "Рилс", publishDate: "2026-10-21", shoot: "2026-10-19" },
+  { id: "morning-carousel", thoughtId: "morning", format: "Карусель", publishDate: "2026-10-17" },
+];
+
+/** Planning state the author changes in the calendar (publish day, "вышло"). Everything else is derived. */
+export type PlanEntry = { publishDate?: string; publishedAt?: string };
+export type Plan = Record<OutputId, PlanEntry>;
 
 export const initialPlan = (): Plan =>
-  Object.fromEntries(THOUGHTS.map((t) => [t.id, { release: t.release, released: t.released }])) as Plan;
+  Object.fromEntries(OUTPUTS.map((o) => [o.id, { publishDate: o.publishDate, publishedAt: o.publishedAt }]));
 
-export const withPlan = (thought: Thought, plan: Plan): Thought => ({ ...thought, release: plan[thought.id].release, released: plan[thought.id].released });
+export const toCard = (output: Output, plan: Plan): Card => {
+  const thought = THOUGHTS.find((t) => t.id === output.thoughtId)!;
+  return { ...output, title: thought.title, cover: thought.cover, facts: thought.facts, ...plan[output.id] };
+};
 
 // Dates are ISO day strings so they compare as strings and survive serialisation.
 export const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;

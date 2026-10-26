@@ -2,22 +2,22 @@
 
 import { useRef, type Dispatch, type SetStateAction } from "react";
 import { Camera, ChevronRight, Plus } from "lucide-react";
-import { TODAY, addDays, dayLabelFull, dayOfMonth, mondayOf, parseDay, plural, weekdayShort, type Thought, type ThoughtId } from "./data";
+import { TODAY, addDays, dayLabelFull, dayOfMonth, mondayOf, parseDay, plural, weekdayShort, type Card, type OutputId } from "./data";
 import { ReelCard } from "./ReelCard";
 import { PIPELINE_COLUMNS, computeCard, missingShots, pipelineColumn, type CardAction, type StageName } from "./stage";
 
 /** Everything a view needs from the Calendar: data with the plan applied, and the handlers. */
 export type Ctx = {
   desktop: boolean;
-  thoughts: Thought[];
-  open: (id: ThoughtId) => void;
-  act: (thought: Thought, action: CardAction) => void;
-  askDay: (id: ThoughtId) => void;
+  thoughts: Card[];
+  open: (id: OutputId) => void;
+  act: (thought: Card, action: CardAction) => void;
+  askDay: (id: OutputId) => void;
   askThought: (day: string) => void;
-  openShoot: (thought: Thought) => void;
+  openShoot: (thought: Card) => void;
   isSlotDay: (day: string) => boolean;
-  drag: ThoughtId | null;
-  setDrag: (id: ThoughtId | null) => void;
+  drag: OutputId | null;
+  setDrag: (id: OutputId | null) => void;
   drop: (day: string) => void;
   selected: string;
   setSelected: (day: string) => void;
@@ -30,7 +30,7 @@ const when = (day: string) => {
   return n === 0 ? "сегодня" : n === 1 ? "завтра" : `${weekdayShort(day)}, через ${n} ${plural(n, ["день", "дня", "дней"])}`;
 };
 
-const releasesOn = (ctx: Ctx, day: string) => ctx.thoughts.filter((t) => t.release === day);
+const releasesOn = (ctx: Ctx, day: string) => ctx.thoughts.filter((t) => t.publishDate === day);
 /** Thoughts whose shooting is planned on this day and still has missing shots. */
 const shootsOn = (ctx: Ctx, day: string) => ctx.thoughts.filter((t) => t.shoot === day && missingShots(t) > 0);
 
@@ -60,7 +60,7 @@ function DayContent({ ctx, day, variant }: { ctx: Ctx; day: string; variant: "co
 /** "Сегодня": what comes out in the next days and the next shooting day. A block on top of the week, not a section. */
 export function TodayBlock({ ctx }: { ctx: Ctx }) {
   const horizon = addDays(TODAY, 2);
-  const outgoing = ctx.thoughts.filter((t) => t.release && !t.released && t.release >= TODAY && t.release <= horizon).sort((a, b) => (a.release! < b.release! ? -1 : 1));
+  const outgoing = ctx.thoughts.filter((t) => t.publishDate && !t.publishedAt && t.publishDate >= TODAY && t.publishDate <= horizon).sort((a, b) => (a.publishDate! < b.publishDate! ? -1 : 1));
   const shootDay = ctx.thoughts.filter((t) => t.shoot && t.shoot >= TODAY && missingShots(t) > 0).map((t) => t.shoot!).sort()[0];
   const shooting = shootDay ? shootsOn(ctx, shootDay) : [];
   const missing = shooting.reduce((sum, t) => sum + missingShots(t), 0);
@@ -71,7 +71,7 @@ export function TodayBlock({ ctx }: { ctx: Ctx }) {
         <div className="cal-group">
           <header><h3>Выходит</h3></header>
           {outgoing.length === 0 ? <p className="cal-empty">В ближайшие дни ничего не выходит</p> : outgoing.map((t) => (
-            <ReelCard key={t.id} thought={t} info={computeCard(t)} variant="row" when={when(t.release!)} onOpen={() => ctx.open(t.id)} onAction={(a) => ctx.act(t, a)} />
+            <ReelCard key={t.id} thought={t} info={computeCard(t)} variant="row" when={when(t.publishDate!)} onOpen={() => ctx.open(t.id)} onAction={(a) => ctx.act(t, a)} />
           ))}
         </div>
         <div className="cal-group">
@@ -129,7 +129,7 @@ export function WeekView({ ctx, weekStart }: { ctx: Ctx; weekStart: string }) {
 }
 
 export function Undated({ ctx }: { ctx: Ctx }) {
-  const list = ctx.thoughts.filter((t) => !t.release && !t.released);
+  const list = ctx.thoughts.filter((t) => !t.publishDate && !t.publishedAt);
   return (
     <section className="cal-undated">
       <header><h2>Без даты <span>· {list.length}</span></h2>{ctx.desktop && <small>Перетащите на день</small>}</header>

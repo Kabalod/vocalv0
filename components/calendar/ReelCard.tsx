@@ -2,13 +2,13 @@
 
 import type { DragEvent, ReactNode } from "react";
 import { AlertTriangle, Clapperboard, GalleryHorizontal } from "lucide-react";
-import type { Thought } from "./data";
+import type { Card } from "./data";
 import type { CardAction, CardInfo } from "./stage";
 
 export type ReelCardVariant = "card" | "compact" | "row";
 
 type Props = {
-  thought: Thought;
+  thought: Card;
   info: CardInfo;
   /** card: cover beside the text (lists, pipeline). compact: cover on top (week board). row: small cover, one line (task groups, day lists). */
   variant?: ReelCardVariant;
@@ -33,7 +33,7 @@ export function StageBar({ info }: { info: CardInfo }) {
   );
 }
 
-export function FormatBadge({ format }: { format: Thought["format"] }): ReactNode {
+export function FormatBadge({ format }: { format: Card["format"] }): ReactNode {
   const Icon = format === "Карусель" ? GalleryHorizontal : Clapperboard;
   return <span className="cal-format"><Icon />{format}</span>;
 }
