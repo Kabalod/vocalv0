@@ -21,8 +21,8 @@ const eventOptions = [
   { title: "Вечер после тренировки", image: "/events/evening.png", note: "предложено Vocal" },
 ];
 
-export default function EditingStudio() {
-  const [demo, setDemo] = useState<DemoState>("ready");
+export default function EditingStudio({ initialShoot = false }: { initialShoot?: boolean }) {
+  const [demo, setDemo] = useState<DemoState>(initialShoot ? "shoot" : "ready");
   const [shots, setShots] = useState(initialShots);
   const [format, setFormat] = useState("Говорящая голова");
   const [target, setTarget] = useState(30);

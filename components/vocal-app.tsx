@@ -34,9 +34,7 @@ import { MOCK_TAKES, TakesPath } from "./takes-path";
 import { PaymentScreen, PRICE, ProfilePage, type PayMethod, type PayStatus, type PaymentRow, type Sub } from "./account-views";
 import CarouselStudio from "./carousel-studio";
 import EditingStudio from "./editing-studio";
-import ContentCalendar from "./content-calendar";
-import PlanningDesktop, { type PlanningStudioTab } from "./planning-desktop";
-import PlanningMobile, { type MobileStudioTab } from "./planning-mobile";
+import Calendar, { type StudioTab } from "./calendar/Calendar";
 import './focused-thought.css';
 import './macos-thought.css';
 import './apple-polish.css';
@@ -632,8 +630,9 @@ export default function VocalApp() {
   useEffect(() => () => { if (buildTimer.current !== null) window.clearTimeout(buildTimer.current); }, []);
   const [tab, setTab] = useState<Tab>("Диалог");
   const [showThoughts, setShowThoughts] = useState(true);
-  const [planningPage, setPlanningPage] = useState(true);
-  const [calendarPage, setCalendarPage] = useState(false);
+  const [calendarPage, setCalendarPage] = useState(true);
+  const [studioShoot, setStudioShoot] = useState(false);
+  useEffect(() => { if (tab !== "Монтаж") setStudioShoot(false); }, [tab]);
   const [palette, setPalette] = useState(false);
   const [menu, setMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -687,9 +686,15 @@ export default function VocalApp() {
         onAutoRenew={setAutoRenew}
       />
     );
-  if (calendarPage) return <ContentCalendar onThoughts={() => { setCalendarPage(false); setShowThoughts(true); }} onProfile={() => { setCalendarPage(false); setProfilePage(true); }} onNew={() => { setCalendarPage(false); setNewThought(true); setShowThoughts(true); }} />;
-  if (desktop && planningPage) return <PlanningDesktop onThoughts={() => { setPlanningPage(false); setShowThoughts(true); }} onProfile={() => setProfilePage(true)} onOpenStudio={(title: string, studioTab: PlanningStudioTab) => { setActiveThought(title); setTab(studioTab); setPlanningPage(false); setShowThoughts(false); }} />;
-  if (!desktop && planningPage) return <PlanningMobile onThoughts={() => { setPlanningPage(false); setShowThoughts(true); }} onProfile={() => setProfilePage(true)} onNew={() => { setPlanningPage(false); setShowThoughts(true); setNewThought(true); }} onOpenStudio={(title: string, studioTab: MobileStudioTab) => { setActiveThought(title); setTab(studioTab); setPlanningPage(false); setShowThoughts(false); }} />;
+  if (calendarPage)
+    return (
+      <Calendar
+        onThoughts={() => { setCalendarPage(false); setShowThoughts(true); }}
+        onProfile={() => setProfilePage(true)}
+        onNew={() => { setCalendarPage(false); setShowThoughts(true); setNewThought(true); }}
+        onOpenStudio={(title: string, studioTab: StudioTab, options?: { shoot?: boolean }) => { setActiveThought(title); setTab(studioTab); setStudioShoot(Boolean(options?.shoot)); setCalendarPage(false); setShowThoughts(false); }}
+      />
+    );
   if (showThoughts)
     return (
       <>
@@ -739,7 +744,7 @@ export default function VocalApp() {
       {tab === "Диалог" && <Dialog desktop={desktop} locked={locked} onSpend={(tenths) => setSpent(value => value + tenths)} versions={versions} onBuildScript={() => { setTab("Сценарий"); startBuild(); }} />}
  {tab === "Сценарий" && (desktop ? <ScriptDesktop locked={locked} versions={versions} building={building} onBuild={startBuild} onCancelBuild={cancelBuild} onHelp={() => setTab("Диалог")} /> : <ScriptView locked={locked} />)}
  {tab === "Дубли" && <DraftsView locked={locked} onRecord={() => setTakeRecorder(true)} />}
- {tab === "Монтаж" && <EditingStudio />}
+ {tab === "Монтаж" && <EditingStudio initialShoot={studioShoot} />}
  {tab === "Карусель" && <CarouselStudio />}
       {palette && <CommandPalette onClose={() => setPalette(false)} />}
     </ThoughtShell>
